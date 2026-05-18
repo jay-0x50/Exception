@@ -25,6 +25,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Dummy")
 	void ResetDummy();
 
+	UFUNCTION(BlueprintCallable, Category="BossRaid|AI")
+	void SetCombatAIEnabled(bool bEnabled);
+
 	UFUNCTION(BlueprintPure, Category="BossRaid|Dummy")
 	bool IsDead() const { return bIsDead; }
 
@@ -46,14 +49,60 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Stats", meta=(ClampMin="0.0"))
 	float GroggyDamageMultiplier = 0.5f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|AI")
+	bool bCombatAIEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|AI", meta=(ClampMin="0.0", Units="cm"))
+	float DetectionRange = 1600.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|AI", meta=(ClampMin="0.0", Units="cm"))
+	float AttackRange = 260.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|AI", meta=(ClampMin="0.0", Units="cm/s"))
+	float MoveSpeed = 180.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|AI", meta=(ClampMin="0.0"))
+	float RotationInterpSpeed = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0"))
+	float BossAttackDamage = 20.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.01", Units="s"))
+	float BossAttackWindup = 0.65f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.01", Units="s"))
+	float BossAttackCooldown = 1.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="1.0", Units="cm"))
+	float BossAttackRadius = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0", Units="cm"))
+	float BossAttackForwardOffset = 180.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Groggy", meta=(ClampMin="0.1", Units="s"))
+	float GroggyDuration = 3.0f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|State")
 	bool bIsDead = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|State")
 	bool bIsGroggy = false;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|State")
+	bool bIsAttacking = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
 	bool bShowDebug = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
+	bool bDrawAttackDebug = true;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> CurrentTarget;
+
+	FTimerHandle AttackWindupTimerHandle;
+	FTimerHandle GroggyTimerHandle;
+	float LastAttackTime = -1000.0f;
 
 	UFUNCTION()
 	void HandleDead();
@@ -61,5 +110,12 @@ protected:
 	UFUNCTION()
 	void HandleGroggy();
 
+	void RecoverFromGroggy();
+	void UpdateCombatAI(float DeltaSeconds);
+	void FaceTarget(float DeltaSeconds);
+	void MoveTowardTarget(float DeltaSeconds);
+	bool CanStartAttack(float DistanceToTarget) const;
+	void StartBossAttack();
+	void PerformBossAttack();
 	void DrawDummyDebug() const;
 };

@@ -2,6 +2,7 @@
 
 #include "Boss_RaidCharacter.h"
 #include "BRCombatInterface.h"
+#include "BRBossDummy.h"
 #include "Boss_RaidGameMode.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
@@ -51,8 +52,11 @@ ABoss_RaidCharacter::ABoss_RaidCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
+	CameraBoom->TargetArmLength = FreeCameraArmLength;
+	CameraBoom->TargetOffset = FVector::ZeroVector;
+	CameraBoom->SocketOffset = FVector::ZeroVector;
 	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bDoCollisionTest = true;
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -84,6 +88,7 @@ void ABoss_RaidCharacter::Tick(float DeltaSeconds)
 		BroadcastStamina();
 	}
 
+	UpdateLockOn(DeltaSeconds);
 	DrawCombatDebug();
 }
 
@@ -134,6 +139,11 @@ void ABoss_RaidCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		if (InteractAction)
 		{
 			EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::InteractPressed);
+		}
+
+		if (LockOnAction)
+		{
+			EnhancedInputComponent->BindAction(LockOnAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::LockOnPressed);
 		}
 
 		SetupRuntimeCombatInput(EnhancedInputComponent);
@@ -187,48 +197,91 @@ void ABoss_RaidCharacter::InteractPressed()
 	DoInteract();
 }
 
+void ABoss_RaidCharacter::LockOnPressed()
+{
+	ToggleLockOn();
+}
+
 void ABoss_RaidCharacter::SetupRuntimeCombatInput(UEnhancedInputComponent* EnhancedInputComponent)
 {
-	if (!EnhancedInputComponent || LightAttackAction || HeavyAttackAction || DodgeAction || ParryAction || InteractAction)
+	if (!EnhancedInputComponent)
 	{
 		return;
 	}
 
-	RuntimeCombatMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_RuntimeBossRaidCombat"));
-	RuntimeLightAttackAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeLightAttack"));
-	RuntimeHeavyAttackAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeHeavyAttack"));
-	RuntimeDodgeAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeDodge"));
-	RuntimeParryAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeParry"));
-	RuntimeInteractAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeInteract"));
-
-	RuntimeLightAttackAction->ValueType = EInputActionValueType::Boolean;
-	RuntimeHeavyAttackAction->ValueType = EInputActionValueType::Boolean;
-	RuntimeDodgeAction->ValueType = EInputActionValueType::Boolean;
-	RuntimeParryAction->ValueType = EInputActionValueType::Boolean;
-	RuntimeInteractAction->ValueType = EInputActionValueType::Boolean;
-
-	RuntimeCombatMappingContext->MapKey(RuntimeLightAttackAction, EKeys::LeftMouseButton);
-	RuntimeCombatMappingContext->MapKey(RuntimeHeavyAttackAction, EKeys::RightMouseButton);
-	RuntimeCombatMappingContext->MapKey(RuntimeDodgeAction, EKeys::LeftShift);
-	RuntimeCombatMappingContext->MapKey(RuntimeParryAction, EKeys::F);
-	RuntimeCombatMappingContext->MapKey(RuntimeInteractAction, EKeys::E);
-
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	bool bNeedsRuntimeMapping = false;
+	if (!RuntimeCombatMappingContext)
 	{
-		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+		RuntimeCombatMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_RuntimeBossRaidCombat"));
+	}
+
+	if (!LightAttackAction)
+	{
+		RuntimeLightAttackAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeLightAttack"));
+		RuntimeLightAttackAction->ValueType = EInputActionValueType::Boolean;
+		RuntimeCombatMappingContext->MapKey(RuntimeLightAttackAction, EKeys::LeftMouseButton);
+		EnhancedInputComponent->BindAction(RuntimeLightAttackAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::LightAttackPressed);
+		bNeedsRuntimeMapping = true;
+	}
+
+	if (!HeavyAttackAction)
+	{
+		RuntimeHeavyAttackAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeHeavyAttack"));
+		RuntimeHeavyAttackAction->ValueType = EInputActionValueType::Boolean;
+		RuntimeCombatMappingContext->MapKey(RuntimeHeavyAttackAction, EKeys::RightMouseButton);
+		EnhancedInputComponent->BindAction(RuntimeHeavyAttackAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::HeavyAttackPressed);
+		bNeedsRuntimeMapping = true;
+	}
+
+	if (!DodgeAction)
+	{
+		RuntimeDodgeAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeDodge"));
+		RuntimeDodgeAction->ValueType = EInputActionValueType::Boolean;
+		RuntimeCombatMappingContext->MapKey(RuntimeDodgeAction, EKeys::LeftShift);
+		EnhancedInputComponent->BindAction(RuntimeDodgeAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::DodgePressed);
+		bNeedsRuntimeMapping = true;
+	}
+
+	if (!ParryAction)
+	{
+		RuntimeParryAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeParry"));
+		RuntimeParryAction->ValueType = EInputActionValueType::Boolean;
+		RuntimeCombatMappingContext->MapKey(RuntimeParryAction, EKeys::F);
+		EnhancedInputComponent->BindAction(RuntimeParryAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::ParryPressed);
+		bNeedsRuntimeMapping = true;
+	}
+
+	if (!InteractAction)
+	{
+		RuntimeInteractAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeInteract"));
+		RuntimeInteractAction->ValueType = EInputActionValueType::Boolean;
+		RuntimeCombatMappingContext->MapKey(RuntimeInteractAction, EKeys::E);
+		EnhancedInputComponent->BindAction(RuntimeInteractAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::InteractPressed);
+		bNeedsRuntimeMapping = true;
+	}
+
+	if (!LockOnAction)
+	{
+		RuntimeLockOnAction = NewObject<UInputAction>(this, TEXT("IA_RuntimeLockOn"));
+		RuntimeLockOnAction->ValueType = EInputActionValueType::Boolean;
+		RuntimeCombatMappingContext->MapKey(RuntimeLockOnAction, EKeys::Tab);
+		EnhancedInputComponent->BindAction(RuntimeLockOnAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::LockOnPressed);
+		bNeedsRuntimeMapping = true;
+	}
+
+	if (bNeedsRuntimeMapping)
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 		{
-			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+			if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
 			{
-				Subsystem->AddMappingContext(RuntimeCombatMappingContext, 1);
+				if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+				{
+					Subsystem->AddMappingContext(RuntimeCombatMappingContext, 1);
+				}
 			}
 		}
 	}
-
-	EnhancedInputComponent->BindAction(RuntimeLightAttackAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::LightAttackPressed);
-	EnhancedInputComponent->BindAction(RuntimeHeavyAttackAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::HeavyAttackPressed);
-	EnhancedInputComponent->BindAction(RuntimeDodgeAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::DodgePressed);
-	EnhancedInputComponent->BindAction(RuntimeParryAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::ParryPressed);
-	EnhancedInputComponent->BindAction(RuntimeInteractAction, ETriggerEvent::Started, this, &ABoss_RaidCharacter::InteractPressed);
 }
 
 void ABoss_RaidCharacter::DoMove(float Right, float Forward)
@@ -258,6 +311,13 @@ void ABoss_RaidCharacter::DoMove(float Right, float Forward)
 
 void ABoss_RaidCharacter::DoLook(float Yaw, float Pitch)
 {
+	if (bIsLockedOn)
+	{
+		LockOnYawOffset = FMath::Clamp(LockOnYawOffset + (Yaw * LockOnLookInputSensitivity), -LockOnYawOffsetLimit, LockOnYawOffsetLimit);
+		LockOnPitchOffset = FMath::Clamp(LockOnPitchOffset + (Pitch * LockOnLookInputSensitivity), -LockOnPitchOffsetLimit, LockOnPitchOffsetLimit);
+		return;
+	}
+
 	if (GetController() != nullptr)
 	{
 		// add yaw and pitch input to controller
@@ -361,6 +421,60 @@ void ABoss_RaidCharacter::DoInteract()
 	UE_LOG(LogTemplateCharacter, Log, TEXT("Interact pressed. Groggy execution target check will be connected with the boss implementation."));
 }
 
+void ABoss_RaidCharacter::ToggleLockOn()
+{
+	if (bIsLockedOn)
+	{
+		ClearLockOn();
+		return;
+	}
+
+	LockOnTarget = FindLockOnTarget();
+	if (!LockOnTarget)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(1005, 1.0f, FColor::Silver, TEXT("No Lock-on Target"));
+		}
+		return;
+	}
+
+	bIsLockedOn = true;
+	LockOnYawOffset = 0.0f;
+	LockOnPitchOffset = 0.0f;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+	CameraBoom->TargetArmLength = LockOnCameraArmLength;
+	CameraBoom->TargetOffset = LockOnCameraTargetOffset;
+	CameraBoom->SocketOffset = LockOnCameraSocketOffset;
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(1006, 1.0f, FColor::Cyan, TEXT("Lock-on Enabled"));
+	}
+}
+
+void ABoss_RaidCharacter::ClearLockOn()
+{
+	if (!bIsLockedOn && !LockOnTarget)
+	{
+		return;
+	}
+
+	bIsLockedOn = false;
+	LockOnTarget = nullptr;
+	LockOnYawOffset = 0.0f;
+	LockOnPitchOffset = 0.0f;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	CameraBoom->TargetArmLength = FreeCameraArmLength;
+	CameraBoom->TargetOffset = FVector::ZeroVector;
+	CameraBoom->SocketOffset = FVector::ZeroVector;
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(1007, 1.0f, FColor::Silver, TEXT("Lock-on Disabled"));
+	}
+}
+
 void ABoss_RaidCharacter::PerformAttackTrace(float Damage, float GroggyDamage)
 {
 	UWorld* World = GetWorld();
@@ -452,6 +566,7 @@ void ABoss_RaidCharacter::RestoreHPAndStamina()
 	bIsParryActive = false;
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	GetCharacterMovement()->StopMovementImmediately();
+	ClearLockOn();
 	BroadcastHP();
 	BroadcastStamina();
 }
@@ -459,9 +574,10 @@ void ABoss_RaidCharacter::RestoreHPAndStamina()
 void ABoss_RaidCharacter::RespawnAtCheckpoint()
 {
 	ABoss_RaidGameMode* BossRaidGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ABoss_RaidGameMode>() : nullptr;
-	const FTransform RespawnTransform = BossRaidGameMode && BossRaidGameMode->HasCheckpoint()
+	FTransform RespawnTransform = BossRaidGameMode && BossRaidGameMode->HasCheckpoint()
 		? BossRaidGameMode->GetCheckpointTransform()
 		: GetActorTransform();
+	RespawnTransform.SetScale3D(GetActorScale3D());
 
 	SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	RestoreHPAndStamina();
@@ -481,12 +597,25 @@ float ABoss_RaidCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEv
 		return 0.0f;
 	}
 
+	if (bIsParryActive)
+	{
+		EndParryWindow();
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(1004, 1.2f, FColor::Cyan, TEXT("Parry Success"));
+		}
+
+		return 0.0f;
+	}
+
 	CurrentHP = FMath::Max(0.0f, CurrentHP - Damage);
 	BroadcastHP();
 	BP_DamageReceived(Damage);
 
 	if (CurrentHP <= 0.0f)
 	{
+		ClearLockOn();
 		SetCombatState(EBRPlayerCombatState::Dead);
 		GetCharacterMovement()->DisableMovement();
 		GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &ABoss_RaidCharacter::RespawnAtCheckpoint, RespawnDelay, false);
@@ -592,7 +721,7 @@ void ABoss_RaidCharacter::DrawCombatDebug() const
 	const float StaminaPercent = MaxStamina > 0.0f ? CurrentStamina / MaxStamina : 0.0f;
 	const float HPPercent = MaxHP > 0.0f ? CurrentHP / MaxHP : 0.0f;
 	const FString DebugText = FString::Printf(
-		TEXT("Player Debug\nState: %s\nHP: %.0f / %.0f (%.0f%%)\nStamina: %.0f / %.0f (%.0f%%)\nInvincible: %s\nParry Active: %s\nLast Attack Hits: %d"),
+		TEXT("Player Debug\nState: %s\nHP: %.0f / %.0f (%.0f%%)\nStamina: %.0f / %.0f (%.0f%%)\nLock-on: %s\nInvincible: %s\nParry Active: %s\nLast Attack Hits: %d"),
 		*GetCombatStateName(),
 		CurrentHP,
 		MaxHP,
@@ -600,6 +729,7 @@ void ABoss_RaidCharacter::DrawCombatDebug() const
 		CurrentStamina,
 		MaxStamina,
 		StaminaPercent * 100.0f,
+		bIsLockedOn ? TEXT("true") : TEXT("false"),
 		bIsInvincible ? TEXT("true") : TEXT("false"),
 		bIsParryActive ? TEXT("true") : TEXT("false"),
 		LastAttackHitCount);
@@ -622,4 +752,92 @@ void ABoss_RaidCharacter::RegisterInitialCheckpoint()
 			BossRaidGameMode->SetCheckpointTransform(GetActorTransform());
 		}
 	}
+}
+
+AActor* ABoss_RaidCharacter::FindLockOnTarget() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> Bosses;
+	UGameplayStatics::GetAllActorsOfClass(this, ABRBossDummy::StaticClass(), Bosses);
+
+	AActor* BestTarget = nullptr;
+	float BestDistanceSq = FMath::Square(LockOnRange);
+	const FVector TraceStart = FollowCamera ? FollowCamera->GetComponentLocation() : GetActorLocation();
+
+	for (AActor* Candidate : Bosses)
+	{
+		ABRBossDummy* Boss = Cast<ABRBossDummy>(Candidate);
+		if (!Boss || Boss->IsDead())
+		{
+			continue;
+		}
+
+		const FVector TargetFocus = Boss->GetActorLocation() + FVector(0.0f, 0.0f, LockOnTargetHeightOffset);
+		const float DistanceSq = FVector::DistSquared(GetActorLocation(), Boss->GetActorLocation());
+		if (DistanceSq > BestDistanceSq)
+		{
+			continue;
+		}
+
+		FHitResult Hit;
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(BossRaidLockOnTrace), false, this);
+		QueryParams.AddIgnoredActor(Boss);
+		const bool bBlocked = World->LineTraceSingleByChannel(Hit, TraceStart, TargetFocus, ECC_Visibility, QueryParams);
+		if (bBlocked)
+		{
+			continue;
+		}
+
+		BestTarget = Boss;
+		BestDistanceSq = DistanceSq;
+	}
+
+	return BestTarget;
+}
+
+void ABoss_RaidCharacter::UpdateLockOn(float DeltaSeconds)
+{
+	if (!bIsLockedOn)
+	{
+		return;
+	}
+
+	ABRBossDummy* Boss = Cast<ABRBossDummy>(LockOnTarget);
+	if (!Boss || Boss->IsDead() || CombatState == EBRPlayerCombatState::Dead)
+	{
+		ClearLockOn();
+		return;
+	}
+
+	const float DistanceToTarget = FVector::Dist(GetActorLocation(), Boss->GetActorLocation());
+	if (DistanceToTarget > LockOnBreakRange)
+	{
+		ClearLockOn();
+		return;
+	}
+
+	const FVector TargetFocus = Boss->GetActorLocation() + FVector(0.0f, 0.0f, LockOnTargetHeightOffset);
+	const FVector CameraLocation = FollowCamera ? FollowCamera->GetComponentLocation() : GetActorLocation();
+	FRotator DesiredControlRotation = (TargetFocus - CameraLocation).Rotation();
+	DesiredControlRotation.Yaw += LockOnYawOffset;
+	DesiredControlRotation.Pitch = FMath::Clamp(DesiredControlRotation.Pitch + LockOnPitchOffset, -85.0f, 85.0f);
+
+	if (AController* CurrentController = GetController())
+	{
+		const FRotator NewControlRotation = FMath::RInterpTo(CurrentController->GetControlRotation(), DesiredControlRotation, DeltaSeconds, LockOnRotationInterpSpeed);
+		CurrentController->SetControlRotation(NewControlRotation);
+	}
+
+	LockOnYawOffset = FMath::FInterpTo(LockOnYawOffset, 0.0f, DeltaSeconds, LockOnOffsetReturnSpeed);
+	LockOnPitchOffset = FMath::FInterpTo(LockOnPitchOffset, 0.0f, DeltaSeconds, LockOnOffsetReturnSpeed);
+
+	const FVector ToTarget = Boss->GetActorLocation() - GetActorLocation();
+	const FRotator DesiredActorRotation = FRotationMatrix::MakeFromX(FVector(ToTarget.X, ToTarget.Y, 0.0f)).Rotator();
+	const FRotator NewActorRotation = FMath::RInterpTo(GetActorRotation(), DesiredActorRotation, DeltaSeconds, LockOnCharacterRotationInterpSpeed);
+	SetActorRotation(NewActorRotation);
 }

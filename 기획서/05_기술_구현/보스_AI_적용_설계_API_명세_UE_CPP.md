@@ -209,7 +209,7 @@ public:
 - 포트폴리오 공개(유튜브/깃헙/압축파일 배포) 시 허용 범위
 
 <aside>
-<img src="https://www.notion.soi" alt="https://www.notion.soi" width="40px" />
+<img src="https://www.notion.so/icons/robot_blue.svg" alt="boss ai" width="40px" />
 
 **추천 운영:** MVP 단계는 “무료 에셋 + 규칙/판정/AI 품질”에 집중하고, 아트는 최소한으로 통일감만 잡기.
 

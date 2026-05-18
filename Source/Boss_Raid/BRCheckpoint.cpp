@@ -55,6 +55,7 @@ void ABRCheckpoint::OnActivationBeginOverlap(UPrimitiveComponent* OverlappedComp
 	{
 		FTransform SavedTransform = GetActorTransform();
 		SavedTransform.SetLocation(GetActorLocation() + FVector(0.0f, 0.0f, 100.0f));
+		SavedTransform.SetScale3D(FVector::OneVector);
 		BossRaidGameMode->SetCheckpointTransform(SavedTransform);
 	}
 

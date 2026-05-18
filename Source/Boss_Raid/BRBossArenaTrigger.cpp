@@ -72,6 +72,11 @@ void ABRBossArenaTrigger::StartArena()
 		BossDummy->ResetDummy();
 	}
 
+	if (BossDummy)
+	{
+		BossDummy->SetCombatAIEnabled(true);
+	}
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(4001, 2.0f, FColor::Red, TEXT("Boss Arena Started"));
@@ -86,6 +91,11 @@ void ABRBossArenaTrigger::HandleBossDefeated()
 	}
 
 	bArenaCleared = true;
+
+	if (BossDummy)
+	{
+		BossDummy->SetCombatAIEnabled(false);
+	}
 
 	if (GateActorToHideOnDefeat)
 	{

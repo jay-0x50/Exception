@@ -12,6 +12,7 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class UAnimMontage;
+class ABRBossDummy;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -85,6 +86,9 @@ protected:
 	/** Interact Input Action, reserved for groggy execution later */
 	UPROPERTY(EditAnywhere, Category="Input|Combat")
 	UInputAction* InteractAction;
+
+	UPROPERTY(EditAnywhere, Category="Input|Combat")
+	UInputAction* LockOnAction;
 
 	/** Max player HP for the boss raid demo */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Stats", meta=(ClampMin="1.0"))
@@ -187,8 +191,59 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Respawn", meta=(ClampMin="0.0", Units="s"))
 	float RespawnDelay = 1.5f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="cm"))
+	float LockOnRange = 1500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="cm"))
+	float LockOnBreakRange = 2000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0"))
+	float LockOnRotationInterpSpeed = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0"))
+	float LockOnLookInputSensitivity = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="deg"))
+	float LockOnYawOffsetLimit = 35.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="deg"))
+	float LockOnPitchOffsetLimit = 18.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0"))
+	float LockOnOffsetReturnSpeed = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0"))
+	float LockOnCharacterRotationInterpSpeed = 10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="cm"))
+	float LockOnTargetHeightOffset = 180.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="cm"))
+	float LockOnCameraArmLength = 350.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(Units="cm"))
+	FVector LockOnCameraTargetOffset = FVector(0.0f, 0.0f, 90.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(Units="cm"))
+	FVector LockOnCameraSocketOffset = FVector(0.0f, 55.0f, 25.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="cm"))
+	float FreeCameraArmLength = 400.0f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
 	int32 LastAttackHitCount = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn")
+	bool bIsLockedOn = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn")
+	TObjectPtr<AActor> LockOnTarget;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn")
+	float LockOnYawOffset = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn")
+	float LockOnPitchOffset = 0.0f;
 
 	float LastStaminaSpendTime = -1000.0f;
 	float LastAttackDebugTime = -1000.0f;
@@ -215,6 +270,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> RuntimeInteractAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> RuntimeLockOnAction;
 
 public:
 
@@ -243,6 +301,7 @@ protected:
 	void DodgePressed();
 	void ParryPressed();
 	void InteractPressed();
+	void LockOnPressed();
 	void SetupRuntimeCombatInput(class UEnhancedInputComponent* EnhancedInputComponent);
 
 public:
@@ -278,6 +337,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Combat")
 	virtual void DoInteract();
 
+	UFUNCTION(BlueprintCallable, Category="BossRaid|LockOn")
+	virtual void ToggleLockOn();
+
+	UFUNCTION(BlueprintCallable, Category="BossRaid|LockOn")
+	virtual void ClearLockOn();
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|LockOn")
+	bool IsLockedOn() const { return bIsLockedOn; }
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|LockOn")
+	AActor* GetLockOnTarget() const { return LockOnTarget; }
+
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Combat")
 	virtual void PerformAttackTrace(float Damage, float GroggyDamage);
 
@@ -286,6 +357,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Stats")
 	void RestoreHPAndStamina();
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|Combat")
+	bool IsParryActive() const { return bIsParryActive; }
 
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Respawn")
 	void RespawnAtCheckpoint();
@@ -331,6 +405,8 @@ protected:
 	void DrawCombatDebug() const;
 	FString GetCombatStateName() const;
 	void RegisterInitialCheckpoint();
+	AActor* FindLockOnTarget() const;
+	void UpdateLockOn(float DeltaSeconds);
 
 public:
 
@@ -340,4 +416,3 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
-
