@@ -172,7 +172,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|State")
 	bool bIsParryActive = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
+	bool bShowCombatDebug = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
+	bool bDrawAttackTraceDebug = true;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
+	int32 LastAttackHitCount = 0;
+
 	float LastStaminaSpendTime = -1000.0f;
+	float LastAttackDebugTime = -1000.0f;
 
 	FTimerHandle StateTimerHandle;
 	FTimerHandle InvincibleTimerHandle;
@@ -305,6 +315,8 @@ protected:
 	void PlayOptionalMontage(UAnimMontage* Montage);
 	void BroadcastHP();
 	void BroadcastStamina();
+	void DrawCombatDebug() const;
+	FString GetCombatStateName() const;
 
 public:
 

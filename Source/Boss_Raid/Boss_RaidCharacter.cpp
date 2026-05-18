@@ -8,14 +8,18 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
 #include "Animation/AnimInstance.h"
+#include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/Engine.h"
 #include "Engine/DamageEvents.h"
 #include "Kismet/GameplayStatics.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "Boss_Raid.h"
+
+DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 ABoss_RaidCharacter::ABoss_RaidCharacter()
 {
@@ -77,6 +81,8 @@ void ABoss_RaidCharacter::Tick(float DeltaSeconds)
 		CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + (StaminaRegenPerSecond * DeltaSeconds));
 		BroadcastStamina();
 	}
+
+	DrawCombatDebug();
 }
 
 void ABoss_RaidCharacter::BeginPlay()
@@ -284,6 +290,7 @@ bool ABoss_RaidCharacter::DoLightAttack()
 	SetCombatState(EBRPlayerCombatState::LightAttack);
 	PlayOptionalMontage(LightAttackMontage);
 	PerformAttackTrace(LightAttackDamage);
+	UE_LOG(LogTemplateCharacter, Log, TEXT("LightAttack: Damage=%.1f, HitCount=%d"), LightAttackDamage, LastAttackHitCount);
 
 	GetWorldTimerManager().SetTimer(StateTimerHandle, this, &ABoss_RaidCharacter::FinishCombatAction, LightAttackDuration, false);
 	return true;
@@ -299,6 +306,7 @@ bool ABoss_RaidCharacter::DoHeavyAttack()
 	SetCombatState(EBRPlayerCombatState::HeavyAttack);
 	PlayOptionalMontage(HeavyAttackMontage);
 	PerformAttackTrace(HeavyAttackDamage);
+	UE_LOG(LogTemplateCharacter, Log, TEXT("HeavyAttack: Damage=%.1f, HitCount=%d"), HeavyAttackDamage, LastAttackHitCount);
 
 	GetWorldTimerManager().SetTimer(StateTimerHandle, this, &ABoss_RaidCharacter::FinishCombatAction, HeavyAttackDuration, false);
 	return true;
@@ -313,6 +321,7 @@ bool ABoss_RaidCharacter::DoDodge()
 
 	SetCombatState(EBRPlayerCombatState::Dodge);
 	PlayOptionalMontage(DodgeMontage);
+	UE_LOG(LogTemplateCharacter, Log, TEXT("Dodge: Invincible %.2fs"), DodgeInvincibleDuration);
 
 	bIsInvincible = true;
 	const FVector DodgeDirection = GetLastMovementInputVector().IsNearlyZero()
@@ -334,6 +343,7 @@ bool ABoss_RaidCharacter::DoParry()
 
 	SetCombatState(EBRPlayerCombatState::Parry);
 	PlayOptionalMontage(ParryMontage);
+	UE_LOG(LogTemplateCharacter, Log, TEXT("Parry: Active %.2fs"), ParryActiveDuration);
 
 	bIsParryActive = true;
 	BP_ParryWindowStarted();
@@ -356,6 +366,9 @@ void ABoss_RaidCharacter::PerformAttackTrace(float Damage)
 		return;
 	}
 
+	LastAttackHitCount = 0;
+	LastAttackDebugTime = World->GetTimeSeconds();
+
 	const FVector TraceStart = GetActorLocation() + FVector(0.0f, 0.0f, 45.0f);
 	const FVector TraceEnd = TraceStart + (GetActorForwardVector() * AttackTraceDistance);
 
@@ -368,8 +381,15 @@ void ABoss_RaidCharacter::PerformAttackTrace(float Damage)
 
 	TArray<FHitResult> Hits;
 	const FCollisionShape Shape = FCollisionShape::MakeSphere(AttackTraceRadius);
+	const bool bHit = World->SweepMultiByObjectType(Hits, TraceStart, TraceEnd, FQuat::Identity, ObjectParams, Shape, QueryParams);
 
-	if (!World->SweepMultiByObjectType(Hits, TraceStart, TraceEnd, FQuat::Identity, ObjectParams, Shape, QueryParams))
+	if (bDrawAttackTraceDebug)
+	{
+		DrawDebugLine(World, TraceStart, TraceEnd, bHit ? FColor::Green : FColor::Red, false, 1.0f, 0, 2.0f);
+		DrawDebugSphere(World, TraceEnd, AttackTraceRadius, 16, bHit ? FColor::Green : FColor::Red, false, 1.0f);
+	}
+
+	if (!bHit)
 	{
 		return;
 	}
@@ -386,6 +406,12 @@ void ABoss_RaidCharacter::PerformAttackTrace(float Damage)
 		DamagedActors.Add(HitActor);
 		UGameplayStatics::ApplyDamage(HitActor, Damage, GetController(), this, UDamageType::StaticClass());
 		BP_AttackHit(HitActor, Damage);
+		++LastAttackHitCount;
+
+		if (bDrawAttackTraceDebug)
+		{
+			DrawDebugSphere(World, Hit.ImpactPoint, 18.0f, 12, FColor::Yellow, false, 1.0f);
+		}
 	}
 }
 
@@ -524,4 +550,35 @@ void ABoss_RaidCharacter::BroadcastHP()
 void ABoss_RaidCharacter::BroadcastStamina()
 {
 	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina, MaxStamina > 0.0f ? CurrentStamina / MaxStamina : 0.0f);
+}
+
+void ABoss_RaidCharacter::DrawCombatDebug() const
+{
+	if (!bShowCombatDebug || !GEngine)
+	{
+		return;
+	}
+
+	const float StaminaPercent = MaxStamina > 0.0f ? CurrentStamina / MaxStamina : 0.0f;
+	const float HPPercent = MaxHP > 0.0f ? CurrentHP / MaxHP : 0.0f;
+	const FString DebugText = FString::Printf(
+		TEXT("Player Debug\nState: %s\nHP: %.0f / %.0f (%.0f%%)\nStamina: %.0f / %.0f (%.0f%%)\nInvincible: %s\nParry Active: %s\nLast Attack Hits: %d"),
+		*GetCombatStateName(),
+		CurrentHP,
+		MaxHP,
+		HPPercent * 100.0f,
+		CurrentStamina,
+		MaxStamina,
+		StaminaPercent * 100.0f,
+		bIsInvincible ? TEXT("true") : TEXT("false"),
+		bIsParryActive ? TEXT("true") : TEXT("false"),
+		LastAttackHitCount);
+
+	GEngine->AddOnScreenDebugMessage(1001, 0.0f, FColor::Cyan, DebugText);
+}
+
+FString ABoss_RaidCharacter::GetCombatStateName() const
+{
+	const UEnum* Enum = StaticEnum<EBRPlayerCombatState>();
+	return Enum ? Enum->GetNameStringByValue(static_cast<int64>(CombatState)) : TEXT("Unknown");
 }
