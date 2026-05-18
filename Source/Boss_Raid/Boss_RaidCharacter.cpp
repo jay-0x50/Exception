@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Boss_RaidCharacter.h"
+#include "BRCombatInterface.h"
+#include "Boss_RaidGameMode.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -90,6 +92,7 @@ void ABoss_RaidCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	RestoreHPAndStamina();
+	RegisterInitialCheckpoint();
 }
 
 void ABoss_RaidCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -289,7 +292,7 @@ bool ABoss_RaidCharacter::DoLightAttack()
 
 	SetCombatState(EBRPlayerCombatState::LightAttack);
 	PlayOptionalMontage(LightAttackMontage);
-	PerformAttackTrace(LightAttackDamage);
+	PerformAttackTrace(LightAttackDamage, LightAttackGroggyDamage);
 	UE_LOG(LogTemplateCharacter, Log, TEXT("LightAttack: Damage=%.1f, HitCount=%d"), LightAttackDamage, LastAttackHitCount);
 
 	GetWorldTimerManager().SetTimer(StateTimerHandle, this, &ABoss_RaidCharacter::FinishCombatAction, LightAttackDuration, false);
@@ -305,7 +308,7 @@ bool ABoss_RaidCharacter::DoHeavyAttack()
 
 	SetCombatState(EBRPlayerCombatState::HeavyAttack);
 	PlayOptionalMontage(HeavyAttackMontage);
-	PerformAttackTrace(HeavyAttackDamage);
+	PerformAttackTrace(HeavyAttackDamage, HeavyAttackGroggyDamage);
 	UE_LOG(LogTemplateCharacter, Log, TEXT("HeavyAttack: Damage=%.1f, HitCount=%d"), HeavyAttackDamage, LastAttackHitCount);
 
 	GetWorldTimerManager().SetTimer(StateTimerHandle, this, &ABoss_RaidCharacter::FinishCombatAction, HeavyAttackDuration, false);
@@ -358,7 +361,7 @@ void ABoss_RaidCharacter::DoInteract()
 	UE_LOG(LogTemplateCharacter, Log, TEXT("Interact pressed. Groggy execution target check will be connected with the boss implementation."));
 }
 
-void ABoss_RaidCharacter::PerformAttackTrace(float Damage)
+void ABoss_RaidCharacter::PerformAttackTrace(float Damage, float GroggyDamage)
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -404,7 +407,14 @@ void ABoss_RaidCharacter::PerformAttackTrace(float Damage)
 		}
 
 		DamagedActors.Add(HitActor);
-		UGameplayStatics::ApplyDamage(HitActor, Damage, GetController(), this, UDamageType::StaticClass());
+		if (HitActor->GetClass()->ImplementsInterface(UBRCombatInterface::StaticClass()))
+		{
+			IBRCombatInterface::Execute_ReceiveCombatHit(HitActor, Damage, GroggyDamage, this);
+		}
+		else
+		{
+			UGameplayStatics::ApplyDamage(HitActor, Damage, GetController(), this, UDamageType::StaticClass());
+		}
 		BP_AttackHit(HitActor, Damage);
 		++LastAttackHitCount;
 
@@ -441,8 +451,27 @@ void ABoss_RaidCharacter::RestoreHPAndStamina()
 	bIsInvincible = false;
 	bIsParryActive = false;
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->StopMovementImmediately();
 	BroadcastHP();
 	BroadcastStamina();
+}
+
+void ABoss_RaidCharacter::RespawnAtCheckpoint()
+{
+	ABoss_RaidGameMode* BossRaidGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ABoss_RaidGameMode>() : nullptr;
+	const FTransform RespawnTransform = BossRaidGameMode && BossRaidGameMode->HasCheckpoint()
+		? BossRaidGameMode->GetCheckpointTransform()
+		: GetActorTransform();
+
+	SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+	RestoreHPAndStamina();
+
+	if (AController* CurrentController = GetController())
+	{
+		CurrentController->SetControlRotation(RespawnTransform.GetRotation().Rotator());
+	}
+
+	UE_LOG(LogTemplateCharacter, Log, TEXT("Player respawned at checkpoint: %s"), *RespawnTransform.GetLocation().ToString());
 }
 
 float ABoss_RaidCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -460,6 +489,7 @@ float ABoss_RaidCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEv
 	{
 		SetCombatState(EBRPlayerCombatState::Dead);
 		GetCharacterMovement()->DisableMovement();
+		GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &ABoss_RaidCharacter::RespawnAtCheckpoint, RespawnDelay, false);
 	}
 
 	return Damage;
@@ -581,4 +611,15 @@ FString ABoss_RaidCharacter::GetCombatStateName() const
 {
 	const UEnum* Enum = StaticEnum<EBRPlayerCombatState>();
 	return Enum ? Enum->GetNameStringByValue(static_cast<int64>(CombatState)) : TEXT("Unknown");
+}
+
+void ABoss_RaidCharacter::RegisterInitialCheckpoint()
+{
+	if (ABoss_RaidGameMode* BossRaidGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ABoss_RaidGameMode>() : nullptr)
+	{
+		if (!BossRaidGameMode->HasCheckpoint())
+		{
+			BossRaidGameMode->SetCheckpointTransform(GetActorTransform());
+		}
+	}
 }

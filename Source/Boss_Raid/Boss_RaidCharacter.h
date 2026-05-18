@@ -134,7 +134,13 @@ protected:
 	float LightAttackDamage = 15.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0"))
+	float LightAttackGroggyDamage = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0"))
 	float HeavyAttackDamage = 35.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0"))
+	float HeavyAttackGroggyDamage = 20.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0", Units="cm"))
 	float AttackTraceDistance = 160.0f;
@@ -178,6 +184,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
 	bool bDrawAttackTraceDebug = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Respawn", meta=(ClampMin="0.0", Units="s"))
+	float RespawnDelay = 1.5f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
 	int32 LastAttackHitCount = 0;
 
@@ -187,6 +196,7 @@ protected:
 	FTimerHandle StateTimerHandle;
 	FTimerHandle InvincibleTimerHandle;
 	FTimerHandle ParryTimerHandle;
+	FTimerHandle RespawnTimerHandle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> RuntimeCombatMappingContext;
@@ -269,13 +279,16 @@ public:
 	virtual void DoInteract();
 
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Combat")
-	virtual void PerformAttackTrace(float Damage);
+	virtual void PerformAttackTrace(float Damage, float GroggyDamage);
 
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Stats")
 	bool SpendStamina(float Amount);
 
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Stats")
 	void RestoreHPAndStamina();
+
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Respawn")
+	void RespawnAtCheckpoint();
 
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
@@ -317,6 +330,7 @@ protected:
 	void BroadcastStamina();
 	void DrawCombatDebug() const;
 	FString GetCombatStateName() const;
+	void RegisterInitialCheckpoint();
 
 public:
 
