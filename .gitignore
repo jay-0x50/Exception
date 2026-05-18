@@ -1,0 +1,49 @@
+# Unreal Engine generated folders
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# IDE / editor generated files
+.ignore
+.vs/
+.vscode/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+Boss_Raid.code-workspace
+
+# Unreal local/user files
+*.tmp
+*.log
+*.cache
+*.pdb
+*.obj
+*.ilk
+*.ipch
+*.tlog
+*.lastbuildstate
+*.unsuccessfulbuild
+
+# Packaged builds and archives
+Windows/
+WindowsNoEditor/
+Linux/
+Mac/
+Android/
+IOS/
+Packages/
+Releases/
+
+# Python / tool caches
+__pycache__/
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
