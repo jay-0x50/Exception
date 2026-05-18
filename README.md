@@ -1,102 +1,171 @@
 # Boss_Raid
 
-Unreal Engine 5.7 기반의 1:1 보스 레이드 액션 게임 프로토타입입니다.
+Unreal Engine 5.7로 제작 중인 1:1 보스 레이드 액션 게임 프로토타입입니다.
 
-목표는 3~4개월 안에 "패턴 학습 -> 회피/패링 -> 그로기 -> 처형 -> 페이즈 전환" 흐름이 동작하는 소울라이크 스타일 전투 데모를 완성하는 것입니다.
+3~4개월 안에 짧지만 완성도 있는 전투 데모를 만드는 것을 목표로 하고 있습니다. 핵심 전투 흐름은 `패턴 학습 -> 회피/패링 -> 그로기 누적 -> 처형 -> 페이즈 전환`입니다.
 
-## Project Goal
+## 프로젝트 목표
 
-- Unreal C++ 중심의 전투 시스템 구현
-- 기본 에셋을 활용한 빠른 프로토타입 제작
-- 블루프린트는 연출, UI, 애니메이션 연결에 집중
-- 포트폴리오에서 코드 구조와 시스템 설계를 설명할 수 있는 결과물 제작
+이 프로젝트는 단순히 블루프린트로 기능을 연결하는 것보다, Unreal C++로 전투 시스템의 핵심 구조를 직접 설계하고 구현하는 데 중점을 둡니다.
 
-## Current Progress
+- 기본 3D 게임 템플릿 에셋을 활용한 빠른 프로토타입 제작
+- C++ 기반 플레이어 전투 로직 구현
+- 이후 보스 AI, 그로기, 페이즈 전환까지 확장 가능한 구조 설계
+- 블루프린트는 애니메이션, 이펙트, 사운드, UI 연출에 활용
+- 포트폴리오에서 코드 구조와 개발 과정을 설명할 수 있는 결과물 제작
 
-### Player
+## 게임 컨셉
 
-- 기본 3D 캐릭터 이동/카메라
-- HP / Stamina 기본 구조
-- 스태미나 소모 및 자동 회복
-- 약공격 / 강공격 / 회피 / 패링 입력 처리
-- 회피 무적 시간
-- 패링 활성 시간
-- 공격 Sphere Sweep 판정
-- `TakeDamage()` 기반 피격/사망 처리
-- UI/BP 연동을 위한 Delegate 및 Blueprint Event 준비
+플레이어가 보스와 1:1로 전투하는 소울라이크 스타일 액션 게임입니다.
 
-### Git Setup
+처음에는 보스 패턴을 보고 맞으면서 학습하지만, 반복 플레이를 통해 공격 타이밍을 읽고 회피 또는 패링으로 대응할 수 있게 만드는 것이 목표입니다. 단순히 체력을 깎는 전투가 아니라, 그로기 게이지를 누적시켜 큰 보상 타이밍을 만드는 전투 리듬을 구현하려고 합니다.
 
-- Unreal Engine 생성 폴더 제외
-- Git LFS로 `.uasset`, `.umap` 등 바이너리 에셋 관리
-- 기획서 Markdown 문서 포함
+## 현재 구현 상황
 
-## Controls
+### 플레이어 기본 로직
 
-현재 C++에서 기본 테스트용 입력을 런타임으로 등록합니다.
+현재는 기본 3D 템플릿 캐릭터를 기반으로 플레이어 전투 로직을 먼저 구현하고 있습니다.
 
-| Action | Key |
+- 기본 이동 / 카메라 회전
+- HP 값 관리
+- Stamina 값 관리
+- 스태미나 소모
+- 스태미나 자동 회복
+- 약공격 입력 처리
+- 강공격 입력 처리
+- 회피 입력 처리
+- 패링 입력 처리
+- 상호작용 입력 예비 구현
+- 플레이어 전투 상태 관리
+- 공격 판정용 Sphere Sweep
+- 회피 중 무적 시간 처리
+- 패링 활성 시간 처리
+- `TakeDamage()` 기반 피격 처리
+- HP가 0 이하가 되었을 때 사망 상태 전환
+
+### 플레이어 전투 상태
+
+플레이어는 현재 아래 상태를 가집니다.
+
+| 상태 | 설명 |
 | --- | --- |
-| Light Attack | Left Mouse Button |
-| Heavy Attack | Right Mouse Button |
-| Dodge | Left Shift |
-| Parry | F |
-| Interact | E |
+| Idle | 기본 조작 가능 상태 |
+| LightAttack | 약공격 중 |
+| HeavyAttack | 강공격 중 |
+| Dodge | 회피 중 |
+| Parry | 패링 중 |
+| Hit | 피격 상태로 확장 예정 |
+| Dead | 사망 상태 |
 
-## Tech Stack
+### 입력
+
+현재는 테스트를 쉽게 하기 위해 C++에서 기본 입력을 런타임으로 등록합니다.
+
+| 행동 | 키 |
+| --- | --- |
+| 약공격 | 마우스 좌클릭 |
+| 강공격 | 마우스 우클릭 |
+| 회피 | Left Shift |
+| 패링 | F |
+| 상호작용 | E |
+
+나중에는 별도의 Input Action 에셋과 Input Mapping Context를 만들어 블루프린트에서 관리할 예정입니다.
+
+## 기술 방향
+
+### C++에서 담당할 영역
+
+- 플레이어 상태 머신
+- HP / Stamina / Groggy 같은 수치 처리
+- 공격 판정
+- 데미지 처리
+- 보스 AI 판단 로직
+- 페이즈 전환 조건
+- UI 갱신용 Delegate
+
+### 블루프린트에서 담당할 영역
+
+- 애니메이션 몽타주 연결
+- 이펙트 재생
+- 사운드 재생
+- 카메라 흔들림
+- UI 표시
+- 전투 연출
+
+## 사용 기술
 
 - Unreal Engine 5.7
 - C++
 - Enhanced Input
+- Git
 - Git LFS
 
-## Repository Structure
+## 프로젝트 구조
 
 ```text
 Boss_Raid/
-├── Config/              # Unreal project settings
-├── Content/             # Unreal assets, tracked through Git LFS
-├── Source/              # C++ source code
-├── 기획서/               # Game design documents
+├── Config/              # 언리얼 프로젝트 설정
+├── Content/             # 에셋 및 레벨 파일
+├── Source/              # C++ 소스 코드
+├── 기획서/               # 게임 기획 및 개발 문서
 ├── Boss_Raid.uproject
 ├── .gitignore
 └── .gitattributes
 ```
 
-Generated folders such as `Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`, `.vs`, and `.vscode` are intentionally excluded from Git.
+## Git 관리 방식
 
-## Development Notes
+Unreal Engine 프로젝트는 자동 생성 파일과 캐시 파일 용량이 크기 때문에 Git에 올릴 파일을 구분했습니다.
 
-This project is being developed as a learning and portfolio project.
+Git에서 제외하는 대표 항목:
 
-The main focus is not high-end art quality, but building a clear combat loop and a maintainable Unreal C++ architecture:
+- `Binaries/`
+- `Intermediate/`
+- `Saved/`
+- `DerivedDataCache/`
+- `.vs/`
+- `.vscode/`
+- `.sln`
 
-- Player combat state
-- Stat and stamina logic
-- Hit detection
-- Boss AI pattern selection
-- Groggy and execution system
-- Phase transition
-- Event-driven UI updates
+Git에 포함하는 대표 항목:
 
-## Design Documents
+- `Source/`
+- `Config/`
+- `Content/`
+- `기획서/`
+- `Boss_Raid.uproject`
 
-Detailed planning documents are included in the `기획서/` folder.
+`.uasset`, `.umap` 같은 Unreal 에셋 파일은 Git LFS로 관리합니다.
 
-They cover:
+## 기획 문서
 
-- Overall game concept
-- 3~4 month milestone plan
-- Boss pattern sheet
-- Combat system details
-- Unreal C++ implementation checklist
-- Boss AI API design
+`기획서/` 폴더에 개발 방향과 세부 설계를 정리해두었습니다.
 
-## Next Milestone
+포함된 문서:
 
-- Separate player stats into a reusable `StatComponent`
-- Add a combat interface for damage and hit interaction
-- Create a simple boss actor
-- Connect player attacks to boss HP/Groggy
-- Add basic boss Phase 1 patterns
+- 보스 레이드 게임 기획서
+- 개발 일정 마일스톤
+- 보스 패턴 시트
+- 전투 시스템 상세
+- Unreal C++ 구현 체크리스트
+- 보스 AI 적용 설계 및 API 명세
+
+기획 문서는 개발 과정과 설계 의도를 보여주기 위해 저장소에 포함했습니다.
+
+## 다음 개발 목표
+
+1. 플레이어 HP / Stamina 로직을 재사용 가능한 `StatComponent`로 분리
+2. 플레이어와 보스가 공통으로 사용할 전투 인터페이스 작성
+3. 간단한 보스 캐릭터 생성
+4. 플레이어 공격으로 보스 HP와 Groggy가 감소하도록 연결
+5. 보스 1페이즈 기본 패턴 2개 구현
+6. 보스 HP UI와 플레이어 스태미나 UI 연결
+
+## 개발 기록
+
+- Git 저장소 초기화
+- Unreal용 `.gitignore` 작성
+- Git LFS 설정
+- 기본 플레이어 전투 로직 1차 구현
+- README 작성
 
