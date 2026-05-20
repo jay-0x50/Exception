@@ -28,6 +28,7 @@ public class Boss_Raid : ModuleRules
 			"Boss_Raid/Boss",
 			"Boss_Raid/Combat",
 			"Boss_Raid/Player",
+			"Boss_Raid/UI",
 			"Boss_Raid/World",
 			"Boss_Raid/Variant_Platforming",
 			"Boss_Raid/Variant_Platforming/Animation",
