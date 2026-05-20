@@ -5,6 +5,7 @@
 #include "BRBossArenaTrigger.generated.h"
 
 class ABRBossBase;
+class UBRBossStatusWidget;
 class UBoxComponent;
 class UStaticMeshComponent;
 
@@ -49,13 +50,25 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Arena")
 	bool bArenaCleared = false;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UBRBossStatusWidget> BossStatusWidget;
+
 	UFUNCTION()
 	void OnTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
 	void HandleBossDefeated();
 
+	UFUNCTION()
+	void HandleBossStatChanged(float CurrentValue, float MaxValue, float NormalizedValue);
+
+	UFUNCTION()
+	void HandleBossStateChanged();
+
 	void StartArena();
 	void BuildManagedBossList(TArray<ABRBossBase*>& OutBosses) const;
 	bool AreAllManagedBossesDead() const;
+	UBRBossStatusWidget* ShowBossStatusWidget();
+	void RefreshBossStatusWidget();
+	void HideBossStatusWidget();
 };

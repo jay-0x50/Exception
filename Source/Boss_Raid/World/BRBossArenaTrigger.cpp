@@ -1,12 +1,15 @@
 #include "BRBossArenaTrigger.h"
 
 #include "BRBossBase.h"
+#include "BRBossStatusWidget.h"
 #include "Boss_RaidCharacter.h"
 #include "Boss_RaidGameMode.h"
+#include "Boss_RaidPlayerController.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABRBossArenaTrigger::ABRBossArenaTrigger()
@@ -49,6 +52,10 @@ void ABRBossArenaTrigger::BeginPlay()
 		if (Boss)
 		{
 			Boss->OnBossDead.AddDynamic(this, &ABRBossArenaTrigger::HandleBossDefeated);
+			Boss->OnBossHPChanged.AddDynamic(this, &ABRBossArenaTrigger::HandleBossStatChanged);
+			Boss->OnBossGroggyChanged.AddDynamic(this, &ABRBossArenaTrigger::HandleBossStatChanged);
+			Boss->OnBossGroggy.AddDynamic(this, &ABRBossArenaTrigger::HandleBossStateChanged);
+			Boss->OnBossRecoveredFromGroggy.AddDynamic(this, &ABRBossArenaTrigger::HandleBossStateChanged);
 		}
 	}
 
@@ -80,6 +87,13 @@ void ABRBossArenaTrigger::StartArena()
 
 	TArray<ABRBossBase*> ManagedBosses;
 	BuildManagedBossList(ManagedBosses);
+
+	if (UBRBossStatusWidget* ActiveBossStatusWidget = ShowBossStatusWidget())
+	{
+		ActiveBossStatusWidget->ClearBosses();
+		ActiveBossStatusWidget->SetBossCount(ManagedBosses.Num());
+	}
+
 	for (ABRBossBase* Boss : ManagedBosses)
 	{
 		if (!Boss)
@@ -95,6 +109,8 @@ void ABRBossArenaTrigger::StartArena()
 		Boss->SetCombatAIEnabled(true);
 	}
 
+	RefreshBossStatusWidget();
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(4001, 2.0f, FColor::Red, TEXT("Boss Arena Started"));
@@ -109,6 +125,7 @@ void ABRBossArenaTrigger::ResetArenaForRetry()
 	}
 
 	bArenaStarted = false;
+	HideBossStatusWidget();
 
 	TArray<ABRBossBase*> ManagedBosses;
 	BuildManagedBossList(ManagedBosses);
@@ -134,6 +151,8 @@ void ABRBossArenaTrigger::HandleBossDefeated()
 		return;
 	}
 
+	RefreshBossStatusWidget();
+
 	if (!AreAllManagedBossesDead())
 	{
 		if (GEngine)
@@ -144,6 +163,7 @@ void ABRBossArenaTrigger::HandleBossDefeated()
 	}
 
 	bArenaCleared = true;
+	HideBossStatusWidget();
 
 	TArray<ABRBossBase*> ManagedBosses;
 	BuildManagedBossList(ManagedBosses);
@@ -171,6 +191,16 @@ void ABRBossArenaTrigger::HandleBossDefeated()
 	{
 		GEngine->AddOnScreenDebugMessage(4002, 3.0f, FColor::Green, TEXT("Boss Defeated - Path Opened"));
 	}
+}
+
+void ABRBossArenaTrigger::HandleBossStatChanged(float CurrentValue, float MaxValue, float NormalizedValue)
+{
+	RefreshBossStatusWidget();
+}
+
+void ABRBossArenaTrigger::HandleBossStateChanged()
+{
+	RefreshBossStatusWidget();
 }
 
 void ABRBossArenaTrigger::BuildManagedBossList(TArray<ABRBossBase*>& OutBosses) const
@@ -210,4 +240,92 @@ bool ABRBossArenaTrigger::AreAllManagedBossesDead() const
 	}
 
 	return true;
+}
+
+UBRBossStatusWidget* ABRBossArenaTrigger::ShowBossStatusWidget()
+{
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PlayerController)
+	{
+		return nullptr;
+	}
+
+	if (ABoss_RaidPlayerController* BossRaidPC = Cast<ABoss_RaidPlayerController>(PlayerController))
+	{
+		if (UBRBossStatusWidget* PlayerControllerWidget = BossRaidPC->ShowBossStatusWidget())
+		{
+			return PlayerControllerWidget;
+		}
+	}
+
+	if (!BossStatusWidget)
+	{
+		BossStatusWidget = CreateWidget<UBRBossStatusWidget>(PlayerController, UBRBossStatusWidget::StaticClass());
+	}
+
+	if (BossStatusWidget && !BossStatusWidget->IsInViewport())
+	{
+		BossStatusWidget->AddToPlayerScreen(10);
+		BossStatusWidget->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		BossStatusWidget->SetPositionInViewport(FVector2D(40.0f, 32.0f), false);
+		BossStatusWidget->SetDesiredSizeInViewport(FVector2D(760.0f, 180.0f));
+	}
+
+	return BossStatusWidget;
+}
+
+void ABRBossArenaTrigger::RefreshBossStatusWidget()
+{
+	if (!bArenaStarted || bArenaCleared)
+	{
+		return;
+	}
+
+	UBRBossStatusWidget* ActiveBossStatusWidget = ShowBossStatusWidget();
+	if (!ActiveBossStatusWidget)
+	{
+		return;
+	}
+
+	TArray<ABRBossBase*> ManagedBosses;
+	BuildManagedBossList(ManagedBosses);
+	ActiveBossStatusWidget->SetBossCount(ManagedBosses.Num());
+
+	for (int32 BossIndex = 0; BossIndex < ManagedBosses.Num(); ++BossIndex)
+	{
+		const ABRBossBase* Boss = ManagedBosses[BossIndex];
+		if (!Boss)
+		{
+			continue;
+		}
+
+		ActiveBossStatusWidget->SetBossHP(
+			BossIndex,
+			Boss->GetBossDisplayName(),
+			Boss->GetCurrentHP(),
+			Boss->GetMaxHP(),
+			Boss->GetHPPercent());
+
+		ActiveBossStatusWidget->SetBossGroggy(
+			BossIndex,
+			Boss->GetCurrentGroggy(),
+			Boss->GetMaxGroggy(),
+			Boss->GetGroggyPercent());
+
+		ActiveBossStatusWidget->SetBossGroggyState(BossIndex, Boss->IsGroggy());
+	}
+}
+
+void ABRBossArenaTrigger::HideBossStatusWidget()
+{
+	if (ABoss_RaidPlayerController* BossRaidPC = Cast<ABoss_RaidPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		BossRaidPC->HideBossStatusWidget();
+	}
+
+	if (BossStatusWidget)
+	{
+		BossStatusWidget->RemoveFromParent();
+		BossStatusWidget->ClearBosses();
+	}
 }
