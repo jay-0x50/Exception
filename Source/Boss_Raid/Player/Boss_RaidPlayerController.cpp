@@ -2,12 +2,55 @@
 
 
 #include "Boss_RaidPlayerController.h"
+#include "BRBossStatusWidget.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "Boss_Raid.h"
 #include "Widgets/Input/SVirtualJoystick.h"
+
+ABoss_RaidPlayerController::ABoss_RaidPlayerController()
+{
+	BossStatusWidgetClass = UBRBossStatusWidget::StaticClass();
+}
+
+UBRBossStatusWidget* ABoss_RaidPlayerController::ShowBossStatusWidget()
+{
+	if (!IsLocalPlayerController())
+	{
+		return nullptr;
+	}
+
+	if (!BossStatusWidgetClass)
+	{
+		BossStatusWidgetClass = UBRBossStatusWidget::StaticClass();
+	}
+
+	if (!BossStatusWidget && BossStatusWidgetClass)
+	{
+		BossStatusWidget = CreateWidget<UBRBossStatusWidget>(this, BossStatusWidgetClass);
+	}
+
+	if (BossStatusWidget && !BossStatusWidget->IsInViewport())
+	{
+		BossStatusWidget->AddToPlayerScreen(10);
+		BossStatusWidget->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		BossStatusWidget->SetPositionInViewport(FVector2D(40.0f, 32.0f), false);
+		BossStatusWidget->SetDesiredSizeInViewport(FVector2D(760.0f, 180.0f));
+	}
+
+	return BossStatusWidget;
+}
+
+void ABoss_RaidPlayerController::HideBossStatusWidget()
+{
+	if (BossStatusWidget)
+	{
+		BossStatusWidget->RemoveFromParent();
+		BossStatusWidget->ClearBosses();
+	}
+}
 
 void ABoss_RaidPlayerController::BeginPlay()
 {

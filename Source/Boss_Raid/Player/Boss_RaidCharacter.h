@@ -247,7 +247,7 @@ protected:
 	float FreeCameraArmLength = 400.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Execution", meta=(ClampMin="0.0", Units="cm"))
-	float ExecutionRange = 220.0f;
+	float ExecutionRange = 450.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Execution", meta=(ClampMin="0.0", Units="cm"))
 	float ExecutionSnapDistance = 150.0f;

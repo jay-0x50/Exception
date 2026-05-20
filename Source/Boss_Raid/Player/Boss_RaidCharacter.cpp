@@ -780,6 +780,19 @@ FString ABoss_RaidCharacter::GetCombatStateName() const
 	return Enum ? Enum->GetNameStringByValue(static_cast<int64>(CombatState)) : TEXT("Unknown");
 }
 
+static float GetExecutionDistanceSq2D(const ABoss_RaidCharacter* Player, const ABRBossBase* Boss)
+{
+	if (!Player || !Boss)
+	{
+		return TNumericLimits<float>::Max();
+	}
+
+	const FVector PlayerLocation = Player->GetActorLocation();
+	const FBox BossBounds = Boss->GetComponentsBoundingBox(true);
+	const FVector ClosestPoint = BossBounds.IsValid ? BossBounds.GetClosestPointTo(PlayerLocation) : Boss->GetActorLocation();
+	return FVector::DistSquared2D(PlayerLocation, ClosestPoint);
+}
+
 void ABoss_RaidCharacter::RegisterInitialCheckpoint()
 {
 	if (ABoss_RaidGameMode* BossRaidGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ABoss_RaidGameMode>() : nullptr)
@@ -861,7 +874,7 @@ AActor* ABoss_RaidCharacter::FindLockOnTarget() const
 ABRBossBase* ABoss_RaidCharacter::FindExecutionTarget() const
 {
 	ABRBossBase* BestTarget = Cast<ABRBossBase>(LockOnTarget);
-	if (BestTarget && BestTarget->CanBeExecuted() && FVector::Dist(GetActorLocation(), BestTarget->GetActorLocation()) <= ExecutionRange)
+	if (BestTarget && BestTarget->CanBeExecuted() && GetExecutionDistanceSq2D(this, BestTarget) <= FMath::Square(ExecutionRange))
 	{
 		return BestTarget;
 	}
@@ -879,7 +892,7 @@ ABRBossBase* ABoss_RaidCharacter::FindExecutionTarget() const
 			continue;
 		}
 
-		const float DistanceSq = FVector::DistSquared(GetActorLocation(), Boss->GetActorLocation());
+		const float DistanceSq = GetExecutionDistanceSq2D(this, Boss);
 		if (DistanceSq <= BestDistanceSq)
 		{
 			BestTarget = Boss;

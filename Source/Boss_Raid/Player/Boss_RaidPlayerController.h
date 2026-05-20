@@ -8,6 +8,7 @@
 
 class UInputMappingContext;
 class UUserWidget;
+class UBRBossStatusWidget;
 
 /**
  *  Basic PlayerController class for a third person game
@@ -17,6 +18,18 @@ UCLASS(abstract)
 class ABoss_RaidPlayerController : public APlayerController
 {
 	GENERATED_BODY()
+
+public:
+	ABoss_RaidPlayerController();
+
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Boss UI")
+	UBRBossStatusWidget* ShowBossStatusWidget();
+
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Boss UI")
+	void HideBossStatusWidget();
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|Boss UI")
+	UBRBossStatusWidget* GetBossStatusWidget() const { return BossStatusWidget; }
 	
 protected:
 
@@ -35,6 +48,12 @@ protected:
 	/** Pointer to the mobile controls widget */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
+
+	UPROPERTY(EditAnywhere, Category="BossRaid|Boss UI")
+	TSubclassOf<UBRBossStatusWidget> BossStatusWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UBRBossStatusWidget> BossStatusWidget;
 
 	/** If true, the player will use UMG touch controls even if not playing on mobile platforms */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
