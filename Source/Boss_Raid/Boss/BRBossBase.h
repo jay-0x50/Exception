@@ -87,6 +87,18 @@ public:
 	UFUNCTION(BlueprintPure, Category="BossRaid|Stats")
 	float GetHPPercent() const;
 
+	UFUNCTION(BlueprintPure, Category="BossRaid|Stats")
+	float GetMaxGroggy() const;
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|Stats")
+	float GetCurrentGroggy() const;
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|Stats")
+	float GetGroggyPercent() const;
+
+	UFUNCTION(BlueprintPure, Category="BossRaid|Boss")
+	FText GetBossDisplayName() const;
+
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Stats")
 	bool ApplyGroggyDamage(float GroggyDamage, AActor* DamageCauser);
 

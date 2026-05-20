@@ -26,9 +26,9 @@ void ABRPythonBoss::ApplyTeamSlot(int32 TeamSlotIndex)
 		return;
 	}
 
-	PythonDragonRole = TeamSlotIndex == 0
-		? EBRPythonDragonRole::MeleeDragon
-		: EBRPythonDragonRole::RangedDragon;
+	PythonBossIdentity = TeamSlotIndex == 0
+		? EBRPythonBossIdentity::Vethara
+		: EBRPythonBossIdentity::Aurathos;
 	ConfigurePythonPatterns();
 }
 
@@ -45,7 +45,7 @@ void ABRPythonBoss::OnBossPhaseChanged(EBRBossPhase NewPhase)
 
 	if (GEngine)
 	{
-		GEngine->AddOnScreenDebugMessage(2020, 2.0f, FColor::Orange, TEXT("Python Boss Phase Pattern Refresh"));
+		GEngine->AddOnScreenDebugMessage(2020, 2.0f, FColor::Orange, TEXT("Python Twin Boss Phase Pattern Refresh"));
 	}
 }
 
@@ -53,76 +53,76 @@ void ABRPythonBoss::ConfigurePythonPatterns()
 {
 	AttackPatterns.Reset();
 
-	if (PythonDragonRole == EBRPythonDragonRole::MeleeDragon)
+	if (PythonBossIdentity == EBRPythonBossIdentity::Aurathos)
 	{
 		TeamRole = EBRBossTeamRole::Melee;
 
-		FBRBossPatternData Bite;
-		Bite.PatternName = TEXT("Python_Bite");
-		Bite.PatternType = EBRBossPatternType::Melee;
-		Bite.MinRange = 0.0f;
-		Bite.MaxRange = 320.0f;
-		Bite.Damage = 22.0f * MeleeDragonDamageMultiplier;
-		Bite.Windup = 0.5f;
-		Bite.Cooldown = 1.5f;
-		Bite.Radius = 105.0f;
-		Bite.ForwardOffset = 180.0f;
-		Bite.bEnableInPhase1 = true;
-		Bite.bEnableInPhase2 = true;
-		AttackPatterns.Add(Bite);
+		FBRBossPatternData TailSweepCombo;
+		TailSweepCombo.PatternName = TEXT("Aurathos_TailSweepCombo");
+		TailSweepCombo.PatternType = EBRBossPatternType::Melee;
+		TailSweepCombo.MinRange = 0.0f;
+		TailSweepCombo.MaxRange = 340.0f;
+		TailSweepCombo.Damage = 22.0f * AurathosDamageMultiplier;
+		TailSweepCombo.Windup = 0.5f;
+		TailSweepCombo.Cooldown = 1.5f;
+		TailSweepCombo.Radius = 115.0f;
+		TailSweepCombo.ForwardOffset = 180.0f;
+		TailSweepCombo.bEnableInPhase1 = true;
+		TailSweepCombo.bEnableInPhase2 = true;
+		AttackPatterns.Add(TailSweepCombo);
 
-		FBRBossPatternData ClawRush;
-		ClawRush.PatternName = TEXT("Python_ClawRush");
-		ClawRush.PatternType = EBRBossPatternType::Dash;
-		ClawRush.MinRange = 360.0f;
-		ClawRush.MaxRange = 850.0f;
-		ClawRush.Damage = 25.0f * MeleeDragonDamageMultiplier;
-		ClawRush.Windup = 0.65f;
-		ClawRush.Cooldown = 2.6f;
-		ClawRush.Radius = 120.0f;
-		ClawRush.ForwardOffset = 150.0f;
-		ClawRush.DashDistance = 460.0f;
-		ClawRush.bEnableInPhase1 = true;
-		ClawRush.bEnableInPhase2 = true;
-		AttackPatterns.Add(ClawRush);
+		FBRBossPatternData ShadowDash;
+		ShadowDash.PatternName = TEXT("Aurathos_ShadowDash");
+		ShadowDash.PatternType = EBRBossPatternType::Dash;
+		ShadowDash.MinRange = 360.0f;
+		ShadowDash.MaxRange = 850.0f;
+		ShadowDash.Damage = 25.0f * AurathosDamageMultiplier;
+		ShadowDash.Windup = 0.65f;
+		ShadowDash.Cooldown = 2.6f;
+		ShadowDash.Radius = 125.0f;
+		ShadowDash.ForwardOffset = 150.0f;
+		ShadowDash.DashDistance = 460.0f;
+		ShadowDash.bEnableInPhase1 = true;
+		ShadowDash.bEnableInPhase2 = true;
+		AttackPatterns.Add(ShadowDash);
 
-		FBRBossPatternData TailSweep;
-		TailSweep.PatternName = TEXT("Python_TailSweep");
-		TailSweep.PatternType = EBRBossPatternType::AOE;
-		TailSweep.MinRange = 0.0f;
-		TailSweep.MaxRange = 420.0f;
-		TailSweep.Damage = 24.0f * MeleeDragonDamageMultiplier;
-		TailSweep.Windup = 0.8f;
-		TailSweep.Cooldown = 3.2f;
-		TailSweep.Radius = 220.0f;
-		TailSweep.bEnableInPhase1 = false;
-		TailSweep.bEnableInPhase2 = true;
-		AttackPatterns.Add(TailSweep);
+		FBRBossPatternData LavaEruption;
+		LavaEruption.PatternName = TEXT("Aurathos_LavaEruption");
+		LavaEruption.PatternType = EBRBossPatternType::AOE;
+		LavaEruption.MinRange = 0.0f;
+		LavaEruption.MaxRange = 420.0f;
+		LavaEruption.Damage = 24.0f * AurathosDamageMultiplier;
+		LavaEruption.Windup = 0.8f;
+		LavaEruption.Cooldown = 3.2f;
+		LavaEruption.Radius = 220.0f;
+		LavaEruption.bEnableInPhase1 = false;
+		LavaEruption.bEnableInPhase2 = true;
+		AttackPatterns.Add(LavaEruption);
 	}
 	else
 	{
 		TeamRole = EBRBossTeamRole::Ranged;
 
-		FBRBossPatternData Spit;
-		Spit.PatternName = TEXT("Python_AcidSpit");
-		Spit.PatternType = EBRBossPatternType::Melee;
-		Spit.MinRange = 500.0f;
-		Spit.MaxRange = 1150.0f;
-		Spit.Damage = 18.0f * RangedDragonDamageMultiplier;
-		Spit.Windup = 0.75f;
-		Spit.Cooldown = 2.1f;
-		Spit.Radius = 95.0f;
-		Spit.ForwardOffset = 650.0f;
-		Spit.bEnableInPhase1 = true;
-		Spit.bEnableInPhase2 = true;
-		AttackPatterns.Add(Spit);
+		FBRBossPatternData FrostBeam;
+		FrostBeam.PatternName = TEXT("Vethara_FrostBeam");
+		FrostBeam.PatternType = EBRBossPatternType::Melee;
+		FrostBeam.MinRange = 500.0f;
+		FrostBeam.MaxRange = 1150.0f;
+		FrostBeam.Damage = 18.0f * VetharaDamageMultiplier;
+		FrostBeam.Windup = 0.75f;
+		FrostBeam.Cooldown = 2.1f;
+		FrostBeam.Radius = 95.0f;
+		FrostBeam.ForwardOffset = 650.0f;
+		FrostBeam.bEnableInPhase1 = true;
+		FrostBeam.bEnableInPhase2 = true;
+		AttackPatterns.Add(FrostBeam);
 
 		FBRBossPatternData RetreatStrike;
-		RetreatStrike.PatternName = TEXT("Python_RetreatStrike");
+		RetreatStrike.PatternName = TEXT("Vethara_ThunderDashRetreat");
 		RetreatStrike.PatternType = EBRBossPatternType::Dash;
 		RetreatStrike.MinRange = 0.0f;
 		RetreatStrike.MaxRange = 430.0f;
-		RetreatStrike.Damage = 15.0f * RangedDragonDamageMultiplier;
+		RetreatStrike.Damage = 15.0f * VetharaDamageMultiplier;
 		RetreatStrike.Windup = 0.55f;
 		RetreatStrike.Cooldown = 3.4f;
 		RetreatStrike.Radius = 115.0f;
@@ -135,25 +135,25 @@ void ABRPythonBoss::ConfigurePythonPatterns()
 		RetreatStrike.bEnableInPhase2 = true;
 		AttackPatterns.Add(RetreatStrike);
 
-		FBRBossPatternData SweepBreath;
-		SweepBreath.PatternName = TEXT("Python_SweepBreath");
-		SweepBreath.PatternType = EBRBossPatternType::AOE;
-		SweepBreath.MinRange = 450.0f;
-		SweepBreath.MaxRange = 1000.0f;
-		SweepBreath.Damage = 20.0f * RangedDragonDamageMultiplier;
-		SweepBreath.Windup = 1.0f;
-		SweepBreath.Cooldown = 3.0f;
-		SweepBreath.Radius = 260.0f;
-		SweepBreath.bEnableInPhase1 = true;
-		SweepBreath.bEnableInPhase2 = true;
-		AttackPatterns.Add(SweepBreath);
+		FBRBossPatternData BlizzardZone;
+		BlizzardZone.PatternName = TEXT("Vethara_BlizzardZone");
+		BlizzardZone.PatternType = EBRBossPatternType::AOE;
+		BlizzardZone.MinRange = 450.0f;
+		BlizzardZone.MaxRange = 1000.0f;
+		BlizzardZone.Damage = 20.0f * VetharaDamageMultiplier;
+		BlizzardZone.Windup = 1.0f;
+		BlizzardZone.Cooldown = 3.0f;
+		BlizzardZone.Radius = 260.0f;
+		BlizzardZone.bEnableInPhase1 = true;
+		BlizzardZone.bEnableInPhase2 = true;
+		AttackPatterns.Add(BlizzardZone);
 
 		FBRBossPatternData PanicBite;
-		PanicBite.PatternName = TEXT("Python_PanicBite");
+		PanicBite.PatternName = TEXT("Vethara_PanicBite");
 		PanicBite.PatternType = EBRBossPatternType::Melee;
 		PanicBite.MinRange = 0.0f;
 		PanicBite.MaxRange = 260.0f;
-		PanicBite.Damage = 12.0f * RangedDragonDamageMultiplier;
+		PanicBite.Damage = 12.0f * VetharaDamageMultiplier;
 		PanicBite.Windup = 0.7f;
 		PanicBite.Cooldown = 2.2f;
 		PanicBite.Radius = 85.0f;
@@ -166,7 +166,7 @@ void ABRPythonBoss::ConfigurePythonPatterns()
 
 FString ABRPythonBoss::GetBossDebugName() const
 {
-	return PythonDragonRole == EBRPythonDragonRole::RangedDragon
-		? TEXT("Python Ranged Dragon")
-		: TEXT("Python Melee Dragon");
+	return PythonBossIdentity == EBRPythonBossIdentity::Vethara
+		? TEXT("Vethara, Unhandled Exception")
+		: TEXT("Aurathos, Fatal Process");
 }

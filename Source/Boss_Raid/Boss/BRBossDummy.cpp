@@ -89,7 +89,10 @@ void ABRBossDummy::OnBossDeadInternal()
 
 void ABRBossDummy::OnBossGroggyInternal()
 {
-	ClearBaseTimers();
+	GetWorldTimerManager().ClearTimer(AttackWindupTimerHandle);
+	bIsAttacking = false;
+	ActivePatternIndex = INDEX_NONE;
+	NotifyCoordinatedAttackFinished();
 }
 
 void ABRBossDummy::OnBossRecoveredFromGroggyInternal()

@@ -5,13 +5,13 @@
 #include "BRPythonBoss.generated.h"
 
 UENUM(BlueprintType)
-enum class EBRPythonDragonRole : uint8
+enum class EBRPythonBossIdentity : uint8
 {
-	MeleeDragon,
-	RangedDragon
+	Vethara,
+	Aurathos
 };
 
-UCLASS(Blueprintable, BlueprintType, meta=(DisplayName="Python Boss"))
+UCLASS(Blueprintable, BlueprintType, meta=(DisplayName="Python Twin Boss"))
 class BOSS_RAID_API ABRPythonBoss : public ABRBossDummy
 {
 	GENERATED_BODY()
@@ -33,11 +33,11 @@ protected:
 	bool bUseTeamSlotRole = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Python")
-	EBRPythonDragonRole PythonDragonRole = EBRPythonDragonRole::MeleeDragon;
+	EBRPythonBossIdentity PythonBossIdentity = EBRPythonBossIdentity::Vethara;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Python", meta=(ClampMin="0.0"))
-	float MeleeDragonDamageMultiplier = 1.15f;
+	float VetharaDamageMultiplier = 0.85f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Python", meta=(ClampMin="0.0"))
-	float RangedDragonDamageMultiplier = 0.85f;
+	float AurathosDamageMultiplier = 1.15f;
 };

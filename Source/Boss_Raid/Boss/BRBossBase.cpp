@@ -158,6 +158,27 @@ float ABRBossBase::GetHPPercent() const
 	return MaxHP > 0.0f ? GetCurrentHP() / MaxHP : 0.0f;
 }
 
+float ABRBossBase::GetMaxGroggy() const
+{
+	return StatComponent ? StatComponent->GetMaxGroggy() : 0.0f;
+}
+
+float ABRBossBase::GetCurrentGroggy() const
+{
+	return StatComponent ? StatComponent->GetCurrentGroggy() : 0.0f;
+}
+
+float ABRBossBase::GetGroggyPercent() const
+{
+	const float MaxGroggy = GetMaxGroggy();
+	return MaxGroggy > 0.0f ? GetCurrentGroggy() / MaxGroggy : 0.0f;
+}
+
+FText ABRBossBase::GetBossDisplayName() const
+{
+	return FText::FromString(GetBossDebugName());
+}
+
 bool ABRBossBase::ApplyGroggyDamage(float GroggyDamage, AActor* DamageCauser)
 {
 	if (!StatComponent || bIsDead || bIsGroggy || GroggyDamage <= 0.0f)
@@ -293,9 +314,9 @@ void ABRBossBase::HandleGroggy()
 	bIsGroggy = true;
 	bIsAttacking = false;
 	ClearBaseTimers();
-	GetWorldTimerManager().SetTimer(GroggyTimerHandle, this, &ABRBossBase::RecoverFromGroggy, GroggyDuration, false);
 	OnBossGroggy.Broadcast();
 	OnBossGroggyInternal();
+	GetWorldTimerManager().SetTimer(GroggyTimerHandle, this, &ABRBossBase::RecoverFromGroggy, GroggyDuration, false);
 
 	if (GEngine)
 	{
@@ -315,8 +336,14 @@ void ABRBossBase::HandleGroggyChanged(float CurrentValue, float MaxValue, float 
 
 void ABRBossBase::RecoverFromGroggy()
 {
-	if (bIsDead || bIsBeingExecuted)
+	if (bIsDead)
 	{
+		return;
+	}
+
+	if (bIsBeingExecuted)
+	{
+		GetWorldTimerManager().SetTimer(GroggyTimerHandle, this, &ABRBossBase::RecoverFromGroggy, 0.1f, false);
 		return;
 	}
 
