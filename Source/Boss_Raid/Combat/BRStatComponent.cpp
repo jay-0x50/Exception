@@ -33,13 +33,16 @@ void UBRStatComponent::ConfigureMaxStats(float InMaxHP, float InMaxStamina, floa
 
 bool UBRStatComponent::ApplyDamageToStats(float Damage, float GroggyDamage)
 {
-	if (bIsDead || Damage <= 0.0f)
+	if (bIsDead || (Damage <= 0.0f && GroggyDamage <= 0.0f))
 	{
 		return false;
 	}
 
-	CurrentHP = FMath::Max(0.0f, CurrentHP - Damage);
-	BroadcastHP();
+	if (Damage > 0.0f)
+	{
+		CurrentHP = FMath::Max(0.0f, CurrentHP - Damage);
+		BroadcastHP();
+	}
 
 	if (MaxGroggy > 0.0f && GroggyDamage > 0.0f && !bIsGroggy)
 	{
@@ -53,7 +56,7 @@ bool UBRStatComponent::ApplyDamageToStats(float Damage, float GroggyDamage)
 		}
 	}
 
-	if (CurrentHP <= 0.0f)
+	if (Damage > 0.0f && CurrentHP <= 0.0f)
 	{
 		bIsDead = true;
 		OnDead.Broadcast();

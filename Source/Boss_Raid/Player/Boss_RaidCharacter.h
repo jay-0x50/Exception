@@ -12,7 +12,7 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class UAnimMontage;
-class ABRBossDummy;
+class ABRBossBase;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -25,6 +25,7 @@ enum class EBRPlayerCombatState : uint8
 	HeavyAttack,
 	Dodge,
 	Parry,
+	Execution,
 	Hit,
 	Dead
 };
@@ -116,6 +117,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Cost", meta=(ClampMin="0.0"))
 	float ParryStaminaCost = 15.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Parry", meta=(ClampMin="0.0"))
+	float ParrySuccessGroggyDamage = 40.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Timing", meta=(ClampMin="0.01", Units="s"))
 	float LightAttackDuration = 0.45f;
 
@@ -133,6 +137,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Timing", meta=(ClampMin="0.01", Units="s"))
 	float ParryActiveDuration = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Timing", meta=(ClampMin="0.01", Units="s"))
+	float HitStunDuration = 0.35f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Attack", meta=(ClampMin="0.0"))
 	float LightAttackDamage = 15.0f;
@@ -155,6 +162,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Dodge", meta=(ClampMin="0.0"))
 	float DodgeImpulseStrength = 650.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Hit", meta=(ClampMin="0.0"))
+	float HitKnockbackStrength = 350.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Animation")
 	TObjectPtr<UAnimMontage> LightAttackMontage;
 
@@ -166,6 +176,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Animation")
 	TObjectPtr<UAnimMontage> ParryMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Animation")
+	TObjectPtr<UAnimMontage> ExecutionMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Animation")
+	TObjectPtr<UAnimMontage> HitMontage;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Stats")
 	float CurrentHP = 0.0f;
@@ -230,6 +246,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|LockOn", meta=(ClampMin="0.0", Units="cm"))
 	float FreeCameraArmLength = 400.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Execution", meta=(ClampMin="0.0", Units="cm"))
+	float ExecutionRange = 220.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Execution", meta=(ClampMin="0.0", Units="cm"))
+	float ExecutionSnapDistance = 150.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Execution", meta=(ClampMin="0.01", Units="s"))
+	float ExecutionDuration = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="BossRaid|Execution", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float ExecutionDamageMaxHPRatio = 0.3f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Debug")
 	int32 LastAttackHitCount = 0;
 
@@ -252,6 +280,10 @@ protected:
 	FTimerHandle InvincibleTimerHandle;
 	FTimerHandle ParryTimerHandle;
 	FTimerHandle RespawnTimerHandle;
+	FTimerHandle ExecutionTimerHandle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ABRBossBase> PendingExecutionTarget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> RuntimeCombatMappingContext;
@@ -337,6 +369,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="BossRaid|Combat")
 	virtual void DoInteract();
 
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Execution")
+	virtual bool TryExecution();
+
 	UFUNCTION(BlueprintCallable, Category="BossRaid|LockOn")
 	virtual void ToggleLockOn();
 
@@ -393,6 +428,12 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category="BossRaid|Events")
 	void BP_ParryWindowEnded();
 
+	UFUNCTION(BlueprintImplementableEvent, Category="BossRaid|Events")
+	void BP_ExecutionStarted(AActor* Target);
+
+	UFUNCTION(BlueprintImplementableEvent, Category="BossRaid|Events")
+	void BP_ExecutionFinished(AActor* Target, float Damage);
+
 protected:
 	bool CanStartCombatAction() const;
 	void SetCombatState(EBRPlayerCombatState NewState);
@@ -407,6 +448,9 @@ protected:
 	void RegisterInitialCheckpoint();
 	AActor* FindLockOnTarget() const;
 	void UpdateLockOn(float DeltaSeconds);
+	ABRBossBase* FindExecutionTarget() const;
+	void StartExecution(ABRBossBase* Target);
+	void FinishExecution();
 
 public:
 

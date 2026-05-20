@@ -2,7 +2,7 @@
 
 #include "Boss_RaidCharacter.h"
 #include "BRCombatInterface.h"
-#include "BRBossDummy.h"
+#include "BRBossBase.h"
 #include "Boss_RaidGameMode.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
@@ -286,7 +286,7 @@ void ABoss_RaidCharacter::SetupRuntimeCombatInput(UEnhancedInputComponent* Enhan
 
 void ABoss_RaidCharacter::DoMove(float Right, float Forward)
 {
-	if (CombatState == EBRPlayerCombatState::Dead)
+	if (CombatState == EBRPlayerCombatState::Dead || CombatState == EBRPlayerCombatState::Hit || CombatState == EBRPlayerCombatState::Execution)
 	{
 		return;
 	}
@@ -418,7 +418,7 @@ bool ABoss_RaidCharacter::DoParry()
 
 void ABoss_RaidCharacter::DoInteract()
 {
-	UE_LOG(LogTemplateCharacter, Log, TEXT("Interact pressed. Groggy execution target check will be connected with the boss implementation."));
+	TryExecution();
 }
 
 void ABoss_RaidCharacter::ToggleLockOn()
@@ -561,9 +561,15 @@ void ABoss_RaidCharacter::RestoreHPAndStamina()
 {
 	CurrentHP = MaxHP;
 	CurrentStamina = MaxStamina;
+	GetWorldTimerManager().ClearTimer(StateTimerHandle);
+	GetWorldTimerManager().ClearTimer(InvincibleTimerHandle);
+	GetWorldTimerManager().ClearTimer(ParryTimerHandle);
+	GetWorldTimerManager().ClearTimer(RespawnTimerHandle);
+	GetWorldTimerManager().ClearTimer(ExecutionTimerHandle);
 	SetCombatState(EBRPlayerCombatState::Idle);
 	bIsInvincible = false;
 	bIsParryActive = false;
+	PendingExecutionTarget = nullptr;
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	GetCharacterMovement()->StopMovementImmediately();
 	ClearLockOn();
@@ -578,6 +584,11 @@ void ABoss_RaidCharacter::RespawnAtCheckpoint()
 		? BossRaidGameMode->GetCheckpointTransform()
 		: GetActorTransform();
 	RespawnTransform.SetScale3D(GetActorScale3D());
+
+	if (BossRaidGameMode)
+	{
+		BossRaidGameMode->ResetActiveBossArenaForRetry();
+	}
 
 	SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	RestoreHPAndStamina();
@@ -601,6 +612,11 @@ float ABoss_RaidCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEv
 	{
 		EndParryWindow();
 
+		if (ABRBossBase* BossCauser = Cast<ABRBossBase>(DamageCauser))
+		{
+			BossCauser->ApplyGroggyDamage(ParrySuccessGroggyDamage, this);
+		}
+
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(1004, 1.2f, FColor::Cyan, TEXT("Parry Success"));
@@ -615,12 +631,33 @@ float ABoss_RaidCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEv
 
 	if (CurrentHP <= 0.0f)
 	{
+		GetWorldTimerManager().ClearTimer(StateTimerHandle);
+		GetWorldTimerManager().ClearTimer(InvincibleTimerHandle);
+		GetWorldTimerManager().ClearTimer(ParryTimerHandle);
+		GetWorldTimerManager().ClearTimer(ExecutionTimerHandle);
 		ClearLockOn();
 		SetCombatState(EBRPlayerCombatState::Dead);
 		GetCharacterMovement()->DisableMovement();
 		GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &ABoss_RaidCharacter::RespawnAtCheckpoint, RespawnDelay, false);
+		return Damage;
 	}
 
+	GetWorldTimerManager().ClearTimer(StateTimerHandle);
+	GetWorldTimerManager().ClearTimer(InvincibleTimerHandle);
+	GetWorldTimerManager().ClearTimer(ParryTimerHandle);
+	EndParryWindow();
+	bIsInvincible = false;
+	SetCombatState(EBRPlayerCombatState::Hit);
+	PlayOptionalMontage(HitMontage);
+
+	if (DamageCauser)
+	{
+		const FVector AwayFromCauser = FVector(GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal2D();
+		const FVector KnockbackDirection = AwayFromCauser.IsNearlyZero() ? -GetActorForwardVector() : AwayFromCauser;
+		LaunchCharacter(KnockbackDirection * HitKnockbackStrength, true, false);
+	}
+
+	GetWorldTimerManager().SetTimer(StateTimerHandle, this, &ABoss_RaidCharacter::FinishCombatAction, HitStunDuration, false);
 	return Damage;
 }
 
@@ -652,7 +689,7 @@ void ABoss_RaidCharacter::SetCombatState(EBRPlayerCombatState NewState)
 
 void ABoss_RaidCharacter::FinishCombatAction()
 {
-	if (CombatState == EBRPlayerCombatState::Dead)
+	if (CombatState == EBRPlayerCombatState::Dead || CombatState == EBRPlayerCombatState::Execution)
 	{
 		return;
 	}
@@ -754,6 +791,27 @@ void ABoss_RaidCharacter::RegisterInitialCheckpoint()
 	}
 }
 
+bool ABoss_RaidCharacter::TryExecution()
+{
+	if (!CanStartCombatAction())
+	{
+		return false;
+	}
+
+	ABRBossBase* ExecutionTarget = FindExecutionTarget();
+	if (!ExecutionTarget)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(1010, 1.0f, FColor::Silver, TEXT("No Execution Target"));
+		}
+		return false;
+	}
+
+	StartExecution(ExecutionTarget);
+	return true;
+}
+
 AActor* ABoss_RaidCharacter::FindLockOnTarget() const
 {
 	UWorld* World = GetWorld();
@@ -763,7 +821,7 @@ AActor* ABoss_RaidCharacter::FindLockOnTarget() const
 	}
 
 	TArray<AActor*> Bosses;
-	UGameplayStatics::GetAllActorsOfClass(this, ABRBossDummy::StaticClass(), Bosses);
+	UGameplayStatics::GetAllActorsOfClass(this, ABRBossBase::StaticClass(), Bosses);
 
 	AActor* BestTarget = nullptr;
 	float BestDistanceSq = FMath::Square(LockOnRange);
@@ -771,7 +829,7 @@ AActor* ABoss_RaidCharacter::FindLockOnTarget() const
 
 	for (AActor* Candidate : Bosses)
 	{
-		ABRBossDummy* Boss = Cast<ABRBossDummy>(Candidate);
+		ABRBossBase* Boss = Cast<ABRBossBase>(Candidate);
 		if (!Boss || Boss->IsDead())
 		{
 			continue;
@@ -800,6 +858,93 @@ AActor* ABoss_RaidCharacter::FindLockOnTarget() const
 	return BestTarget;
 }
 
+ABRBossBase* ABoss_RaidCharacter::FindExecutionTarget() const
+{
+	ABRBossBase* BestTarget = Cast<ABRBossBase>(LockOnTarget);
+	if (BestTarget && BestTarget->CanBeExecuted() && FVector::Dist(GetActorLocation(), BestTarget->GetActorLocation()) <= ExecutionRange)
+	{
+		return BestTarget;
+	}
+
+	TArray<AActor*> Bosses;
+	UGameplayStatics::GetAllActorsOfClass(this, ABRBossBase::StaticClass(), Bosses);
+
+	float BestDistanceSq = FMath::Square(ExecutionRange);
+	BestTarget = nullptr;
+	for (AActor* Candidate : Bosses)
+	{
+		ABRBossBase* Boss = Cast<ABRBossBase>(Candidate);
+		if (!Boss || !Boss->CanBeExecuted())
+		{
+			continue;
+		}
+
+		const float DistanceSq = FVector::DistSquared(GetActorLocation(), Boss->GetActorLocation());
+		if (DistanceSq <= BestDistanceSq)
+		{
+			BestTarget = Boss;
+			BestDistanceSq = DistanceSq;
+		}
+	}
+
+	return BestTarget;
+}
+
+void ABoss_RaidCharacter::StartExecution(ABRBossBase* Target)
+{
+	if (!Target || !Target->BeginExecution(this))
+	{
+		return;
+	}
+
+	PendingExecutionTarget = Target;
+	GetWorldTimerManager().ClearTimer(StateTimerHandle);
+	GetWorldTimerManager().ClearTimer(InvincibleTimerHandle);
+	GetWorldTimerManager().ClearTimer(ParryTimerHandle);
+	bIsInvincible = true;
+	bIsParryActive = false;
+	SetCombatState(EBRPlayerCombatState::Execution);
+	ClearLockOn();
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->SetMovementMode(MOVE_None);
+
+	const FVector ToPlayer = (GetActorLocation() - Target->GetActorLocation()).GetSafeNormal2D();
+	const FVector SnapDirection = ToPlayer.IsNearlyZero() ? -Target->GetActorForwardVector() : ToPlayer;
+	const FVector SnapLocation = Target->GetActorLocation() + (SnapDirection * ExecutionSnapDistance);
+	SetActorLocation(SnapLocation, false, nullptr, ETeleportType::TeleportPhysics);
+
+	const FVector ToTarget = Target->GetActorLocation() - GetActorLocation();
+	SetActorRotation(FRotationMatrix::MakeFromX(FVector(ToTarget.X, ToTarget.Y, 0.0f)).Rotator());
+	Target->SetActorRotation(FRotationMatrix::MakeFromX(FVector(-ToTarget.X, -ToTarget.Y, 0.0f)).Rotator());
+
+	PlayOptionalMontage(ExecutionMontage);
+	BP_ExecutionStarted(Target);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(1011, 1.2f, FColor::Purple, TEXT("Player Execution"));
+	}
+
+	GetWorldTimerManager().SetTimer(ExecutionTimerHandle, this, &ABoss_RaidCharacter::FinishExecution, ExecutionDuration, false);
+}
+
+void ABoss_RaidCharacter::FinishExecution()
+{
+	ABRBossBase* Target = PendingExecutionTarget.Get();
+	float AppliedDamage = 0.0f;
+	if (Target && !Target->IsDead())
+	{
+		AppliedDamage = Target->GetMaxHP() * ExecutionDamageMaxHPRatio;
+		Target->CompleteExecution(AppliedDamage, this);
+	}
+
+	PendingExecutionTarget = nullptr;
+	bIsInvincible = false;
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	SetCombatState(EBRPlayerCombatState::Idle);
+	BP_ExecutionFinished(Target, AppliedDamage);
+}
+
 void ABoss_RaidCharacter::UpdateLockOn(float DeltaSeconds)
 {
 	if (!bIsLockedOn)
@@ -807,7 +952,7 @@ void ABoss_RaidCharacter::UpdateLockOn(float DeltaSeconds)
 		return;
 	}
 
-	ABRBossDummy* Boss = Cast<ABRBossDummy>(LockOnTarget);
+	ABRBossBase* Boss = Cast<ABRBossBase>(LockOnTarget);
 	if (!Boss || Boss->IsDead() || CombatState == EBRPlayerCombatState::Dead)
 	{
 		ClearLockOn();

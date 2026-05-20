@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "Boss_RaidGameMode.generated.h"
 
+class ABRBossArenaTrigger;
+
 /**
  *  Simple GameMode for a third person game
  */
@@ -28,12 +30,21 @@ public:
 	UFUNCTION(BlueprintPure, Category="BossRaid|Checkpoint")
 	bool HasCheckpoint() const { return bHasCheckpoint; }
 
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Arena")
+	void SetActiveBossArena(ABRBossArenaTrigger* NewActiveArena);
+
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Arena")
+	void ResetActiveBossArenaForRetry();
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Checkpoint")
 	FTransform CheckpointTransform;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Checkpoint")
 	bool bHasCheckpoint = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BossRaid|Arena")
+	TObjectPtr<ABRBossArenaTrigger> ActiveBossArena;
 };
 
 

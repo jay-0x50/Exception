@@ -1,7 +1,8 @@
 #include "BRBossArenaTrigger.h"
 
-#include "BRBossDummy.h"
+#include "BRBossBase.h"
 #include "Boss_RaidCharacter.h"
+#include "Boss_RaidGameMode.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
@@ -41,9 +42,14 @@ void ABRBossArenaTrigger::BeginPlay()
 		TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &ABRBossArenaTrigger::OnTriggerBeginOverlap);
 	}
 
-	if (BossDummy)
+	TArray<ABRBossBase*> ManagedBosses;
+	BuildManagedBossList(ManagedBosses);
+	for (ABRBossBase* Boss : ManagedBosses)
 	{
-		BossDummy->OnDummyDead.AddDynamic(this, &ABRBossArenaTrigger::HandleBossDefeated);
+		if (Boss)
+		{
+			Boss->OnBossDead.AddDynamic(this, &ABRBossArenaTrigger::HandleBossDefeated);
+		}
 	}
 
 	if (RewardActorToShowOnDefeat)
@@ -67,19 +73,57 @@ void ABRBossArenaTrigger::StartArena()
 {
 	bArenaStarted = true;
 
-	if (BossDummy && bResetBossOnEnter)
+	if (ABoss_RaidGameMode* BossRaidGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ABoss_RaidGameMode>() : nullptr)
 	{
-		BossDummy->ResetDummy();
+		BossRaidGameMode->SetActiveBossArena(this);
 	}
 
-	if (BossDummy)
+	TArray<ABRBossBase*> ManagedBosses;
+	BuildManagedBossList(ManagedBosses);
+	for (ABRBossBase* Boss : ManagedBosses)
 	{
-		BossDummy->SetCombatAIEnabled(true);
+		if (!Boss)
+		{
+			continue;
+		}
+
+		if (bResetBossOnEnter)
+		{
+			Boss->ResetBoss();
+		}
+
+		Boss->SetCombatAIEnabled(true);
 	}
 
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(4001, 2.0f, FColor::Red, TEXT("Boss Arena Started"));
+	}
+}
+
+void ABRBossArenaTrigger::ResetArenaForRetry()
+{
+	if (bArenaCleared)
+	{
+		return;
+	}
+
+	bArenaStarted = false;
+
+	TArray<ABRBossBase*> ManagedBosses;
+	BuildManagedBossList(ManagedBosses);
+	for (ABRBossBase* Boss : ManagedBosses)
+	{
+		if (Boss)
+		{
+			Boss->SetCombatAIEnabled(false);
+			Boss->ResetBoss();
+		}
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(4003, 2.0f, FColor::Silver, TEXT("Boss Arena Reset For Retry"));
 	}
 }
 
@@ -90,11 +134,25 @@ void ABRBossArenaTrigger::HandleBossDefeated()
 		return;
 	}
 
+	if (!AreAllManagedBossesDead())
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(4004, 2.0f, FColor::Orange, TEXT("Boss Down - Team Still Fighting"));
+		}
+		return;
+	}
+
 	bArenaCleared = true;
 
-	if (BossDummy)
+	TArray<ABRBossBase*> ManagedBosses;
+	BuildManagedBossList(ManagedBosses);
+	for (ABRBossBase* Boss : ManagedBosses)
 	{
-		BossDummy->SetCombatAIEnabled(false);
+		if (Boss)
+		{
+			Boss->SetCombatAIEnabled(false);
+		}
 	}
 
 	if (GateActorToHideOnDefeat)
@@ -113,4 +171,43 @@ void ABRBossArenaTrigger::HandleBossDefeated()
 	{
 		GEngine->AddOnScreenDebugMessage(4002, 3.0f, FColor::Green, TEXT("Boss Defeated - Path Opened"));
 	}
+}
+
+void ABRBossArenaTrigger::BuildManagedBossList(TArray<ABRBossBase*>& OutBosses) const
+{
+	OutBosses.Reset();
+
+	for (ABRBossBase* Boss : BossActors)
+	{
+		if (Boss)
+		{
+			OutBosses.AddUnique(Boss);
+		}
+	}
+
+	if (BossDummy)
+	{
+		OutBosses.AddUnique(BossDummy);
+	}
+}
+
+bool ABRBossArenaTrigger::AreAllManagedBossesDead() const
+{
+	TArray<ABRBossBase*> ManagedBosses;
+	BuildManagedBossList(ManagedBosses);
+
+	if (ManagedBosses.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const ABRBossBase* Boss : ManagedBosses)
+	{
+		if (Boss && !Boss->IsDead())
+		{
+			return false;
+		}
+	}
+
+	return true;
 }

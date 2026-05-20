@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "BRBossArenaTrigger.generated.h"
 
-class ABRBossDummy;
+class ABRBossBase;
 class UBoxComponent;
 class UStaticMeshComponent;
 
@@ -16,6 +16,9 @@ class BOSS_RAID_API ABRBossArenaTrigger : public AActor
 public:
 	ABRBossArenaTrigger();
 
+	UFUNCTION(BlueprintCallable, Category="BossRaid|Arena")
+	void ResetArenaForRetry();
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -26,7 +29,10 @@ protected:
 	TObjectPtr<UStaticMeshComponent> PreviewMesh;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="BossRaid|Arena")
-	TObjectPtr<ABRBossDummy> BossDummy;
+	TObjectPtr<ABRBossBase> BossDummy;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="BossRaid|Arena")
+	TArray<TObjectPtr<ABRBossBase>> BossActors;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="BossRaid|Arena")
 	TObjectPtr<AActor> GateActorToHideOnDefeat;
@@ -50,4 +56,6 @@ protected:
 	void HandleBossDefeated();
 
 	void StartArena();
+	void BuildManagedBossList(TArray<ABRBossBase*>& OutBosses) const;
+	bool AreAllManagedBossesDead() const;
 };
