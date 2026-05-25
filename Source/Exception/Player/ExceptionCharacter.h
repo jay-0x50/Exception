@@ -12,6 +12,7 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class UAnimMontage;
+class UBRInventoryComponent;
 class ABRBossBase;
 struct FInputActionValue;
 
@@ -49,6 +50,9 @@ class AExceptionCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UBRInventoryComponent> InventoryComponent;
 	
 protected:
 
@@ -407,6 +411,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Exception|Stats")
 	float GetMaxStamina() const { return MaxStamina; }
+
+	UFUNCTION(BlueprintPure, Category="Exception|Inventory")
+	UBRInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 	UFUNCTION(BlueprintPure, Category="Exception|Combat")
 	bool IsParryActive() const { return bIsParryActive; }

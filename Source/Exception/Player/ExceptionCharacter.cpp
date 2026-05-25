@@ -3,6 +3,7 @@
 #include "ExceptionCharacter.h"
 #include "BRCombatInterface.h"
 #include "BRBossBase.h"
+#include "BRInventoryComponent.h"
 #include "ExceptionGameMode.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
@@ -62,6 +63,8 @@ AExceptionCharacter::AExceptionCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	InventoryComponent = CreateDefaultSubobject<UBRInventoryComponent>(TEXT("InventoryComponent"));
 
 	// Note: The skeletal mesh and anim blueprint references are set in the derived player Blueprint.
 }
