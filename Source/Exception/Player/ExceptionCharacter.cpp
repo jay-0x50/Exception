@@ -577,6 +577,27 @@ void AExceptionCharacter::RestoreHPAndStamina()
 	BroadcastStamina();
 }
 
+void AExceptionCharacter::ApplySavedStats(float SavedHP, float SavedStamina)
+{
+	GetWorldTimerManager().ClearTimer(StateTimerHandle);
+	GetWorldTimerManager().ClearTimer(InvincibleTimerHandle);
+	GetWorldTimerManager().ClearTimer(ParryTimerHandle);
+	GetWorldTimerManager().ClearTimer(RespawnTimerHandle);
+	GetWorldTimerManager().ClearTimer(ExecutionTimerHandle);
+
+	CurrentHP = FMath::Clamp(SavedHP, 1.0f, MaxHP);
+	CurrentStamina = FMath::Clamp(SavedStamina, 0.0f, MaxStamina);
+	SetCombatState(EBRPlayerCombatState::Idle);
+	bIsInvincible = false;
+	bIsParryActive = false;
+	PendingExecutionTarget = nullptr;
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->StopMovementImmediately();
+	ClearLockOn();
+	BroadcastHP();
+	BroadcastStamina();
+}
+
 void AExceptionCharacter::RespawnAtCheckpoint()
 {
 	AExceptionGameMode* ExceptionGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AExceptionGameMode>() : nullptr;

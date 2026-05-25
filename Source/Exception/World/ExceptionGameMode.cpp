@@ -3,10 +3,28 @@
 #include "ExceptionGameMode.h"
 
 #include "BRBossArenaTrigger.h"
+#include "BRSaveGameSubsystem.h"
+#include "TimerManager.h"
 
 AExceptionGameMode::AExceptionGameMode()
 {
 	// stub
+}
+
+void AExceptionGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+
+	GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UBRSaveGameSubsystem* SaveSubsystem = GameInstance->GetSubsystem<UBRSaveGameSubsystem>())
+			{
+				SaveSubsystem->ApplyPendingLoadedGame();
+			}
+		}
+	}));
 }
 
 void AExceptionGameMode::SetCheckpointTransform(const FTransform& NewCheckpointTransform)

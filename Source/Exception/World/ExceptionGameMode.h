@@ -37,6 +37,8 @@ public:
 	void ResetActiveBossArenaForRetry();
 
 protected:
+	virtual void BeginPlay() override;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Checkpoint")
 	FTransform CheckpointTransform;
 

@@ -28,6 +28,7 @@ public class Exception : ModuleRules
 			"Exception/Boss",
 			"Exception/Combat",
 			"Exception/Player",
+			"Exception/Save",
 			"Exception/UI",
 			"Exception/World",
 			"Exception/Variant_Platforming",

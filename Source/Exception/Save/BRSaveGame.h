@@ -1,0 +1,36 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/SaveGame.h"
+#include "BRSaveGame.generated.h"
+
+UCLASS(BlueprintType)
+class EXCEPTION_API UBRSaveGame : public USaveGame
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	int32 SaveVersion = 1;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	FName SavedLevelName = NAME_None;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	FTransform PlayerTransform = FTransform::Identity;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	FTransform CheckpointTransform = FTransform::Identity;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	bool bHasCheckpoint = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	float PlayerHP = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	float PlayerStamina = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Exception|Save")
+	TArray<FName> DefeatedBossIds;
+};

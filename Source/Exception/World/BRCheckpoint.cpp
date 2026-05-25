@@ -1,5 +1,6 @@
 #include "BRCheckpoint.h"
 
+#include "BRSaveGameSubsystem.h"
 #include "ExceptionCharacter.h"
 #include "ExceptionGameMode.h"
 #include "Components/SphereComponent.h"
@@ -62,6 +63,14 @@ void ABRCheckpoint::OnActivationBeginOverlap(UPrimitiveComponent* OverlappedComp
 	if (bRestorePlayerOnActivation)
 	{
 		PlayerCharacter->RestoreHPAndStamina();
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UBRSaveGameSubsystem* SaveSubsystem = GameInstance->GetSubsystem<UBRSaveGameSubsystem>())
+		{
+			SaveSubsystem->SaveCurrentGame();
+		}
 	}
 
 	if (GEngine)

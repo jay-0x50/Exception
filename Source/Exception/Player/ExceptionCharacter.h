@@ -393,6 +393,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Exception|Stats")
 	void RestoreHPAndStamina();
 
+	UFUNCTION(BlueprintCallable, Category="Exception|Stats")
+	void ApplySavedStats(float SavedHP, float SavedStamina);
+
+	UFUNCTION(BlueprintPure, Category="Exception|Stats")
+	float GetCurrentHP() const { return CurrentHP; }
+
+	UFUNCTION(BlueprintPure, Category="Exception|Stats")
+	float GetMaxHP() const { return MaxHP; }
+
+	UFUNCTION(BlueprintPure, Category="Exception|Stats")
+	float GetCurrentStamina() const { return CurrentStamina; }
+
+	UFUNCTION(BlueprintPure, Category="Exception|Stats")
+	float GetMaxStamina() const { return MaxStamina; }
+
 	UFUNCTION(BlueprintPure, Category="Exception|Combat")
 	bool IsParryActive() const { return bIsParryActive; }
 
