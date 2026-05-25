@@ -63,8 +63,7 @@ AExceptionCharacter::AExceptionCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	// Note: The skeletal mesh and anim blueprint references are set in the derived player Blueprint.
 }
 
 void AExceptionCharacter::Tick(float DeltaSeconds)

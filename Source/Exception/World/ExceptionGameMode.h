@@ -9,9 +9,9 @@
 class ABRBossArenaTrigger;
 
 /**
- *  Simple GameMode for a third person game
+ *  Main GameMode for Exception.
  */
-UCLASS(abstract)
+UCLASS()
 class AExceptionGameMode : public AGameModeBase
 {
 	GENERATED_BODY()

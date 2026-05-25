@@ -4,11 +4,26 @@
 
 #include "BRBossArenaTrigger.h"
 #include "BRSaveGameSubsystem.h"
+#include "ExceptionCharacter.h"
+#include "ExceptionPlayerController.h"
+#include "UObject/ConstructorHelpers.h"
 #include "TimerManager.h"
 
 AExceptionGameMode::AExceptionGameMode()
 {
-	// stub
+	PlayerControllerClass = AExceptionPlayerController::StaticClass();
+
+	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnClassFinder(TEXT("/Game/Blueprints/Core/BP_ExceptionCharacter"));
+	if (PlayerPawnClassFinder.Succeeded())
+	{
+		DefaultPawnClass = PlayerPawnClassFinder.Class;
+	}
+
+	static ConstructorHelpers::FClassFinder<APlayerController> PlayerControllerClassFinder(TEXT("/Game/Blueprints/Core/BP_ExceptionPlayerController"));
+	if (PlayerControllerClassFinder.Succeeded())
+	{
+		PlayerControllerClass = PlayerControllerClassFinder.Class;
+	}
 }
 
 void AExceptionGameMode::BeginPlay()
