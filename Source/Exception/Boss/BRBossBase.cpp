@@ -2,6 +2,7 @@
 
 #include "BRBossTeamCoordinator.h"
 #include "BRStatComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
@@ -11,12 +12,12 @@ ABRBossBase::ABRBossBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-	SetRootComponent(MeshComponent);
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
 
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
-	MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	MeshComponent->SetupAttachment(SceneRoot);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	MeshComponent->SetGenerateOverlapEvents(false);
 	MeshComponent->SetWorldScale3D(FVector(1.5f, 1.5f, 2.5f));
 

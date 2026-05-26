@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "BRBossBase.h"
-#include "BRBossDummy.generated.h"
+#include "BRPatternBossBase.generated.h"
 
 UENUM(BlueprintType)
 enum class EBRBossPatternType : uint8
@@ -65,16 +65,16 @@ struct FBRBossPatternData
 	bool bEnableInPhase2 = true;
 };
 
-UCLASS(Blueprintable, BlueprintType, meta=(DisplayName="Boss Dummy"))
-class EXCEPTION_API ABRBossDummy : public ABRBossBase
+UCLASS(Blueprintable, BlueprintType, meta=(DisplayName="Pattern Boss Base"))
+class EXCEPTION_API ABRPatternBossBase : public ABRBossBase
 {
 	GENERATED_BODY()
 
 public:
-	ABRBossDummy();
+	ABRPatternBossBase();
 
-	UFUNCTION(BlueprintCallable, Category="Exception|Dummy")
-	void ResetDummy();
+	UFUNCTION(BlueprintCallable, Category="Exception|Boss")
+	void ResetPatternBoss();
 
 	virtual void SetCombatAIEnabled(bool bEnabled) override;
 

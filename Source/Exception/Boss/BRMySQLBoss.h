@@ -1,11 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BRBossDummy.h"
+#include "BRPatternBossBase.h"
 #include "BRMySQLBoss.generated.h"
 
 UCLASS(Blueprintable, BlueprintType, meta=(DisplayName="MySQL Boss"))
-class EXCEPTION_API ABRMySQLBoss : public ABRBossDummy
+class EXCEPTION_API ABRMySQLBoss : public ABRPatternBossBase
 {
 	GENERATED_BODY()
 

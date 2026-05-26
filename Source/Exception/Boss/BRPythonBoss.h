@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BRBossDummy.h"
+#include "BRPatternBossBase.h"
 #include "BRPythonBoss.generated.h"
 
 UENUM(BlueprintType)
@@ -12,7 +12,7 @@ enum class EBRPythonBossIdentity : uint8
 };
 
 UCLASS(Blueprintable, BlueprintType, meta=(DisplayName="Python Twin Boss"))
-class EXCEPTION_API ABRPythonBoss : public ABRBossDummy
+class EXCEPTION_API ABRPythonBoss : public ABRPatternBossBase
 {
 	GENERATED_BODY()
 

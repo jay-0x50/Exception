@@ -1,4 +1,4 @@
-#include "BRBossDummy.h"
+#include "BRPatternBossBase.h"
 
 #include "BRStatComponent.h"
 #include "DrawDebugHelpers.h"
@@ -6,7 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
-ABRBossDummy::ABRBossDummy()
+ABRPatternBossBase::ABRPatternBossBase()
 {
 	InitialMaxHP = 300.0f;
 	InitialMaxGroggy = 100.0f;
@@ -56,12 +56,12 @@ ABRBossDummy::ABRBossDummy()
 	AttackPatterns.Add(LongAttack);
 }
 
-void ABRBossDummy::ResetDummy()
+void ABRPatternBossBase::ResetPatternBoss()
 {
 	ResetBoss();
 }
 
-void ABRBossDummy::SetCombatAIEnabled(bool bEnabled)
+void ABRPatternBossBase::SetCombatAIEnabled(bool bEnabled)
 {
 	Super::SetCombatAIEnabled(bEnabled);
 	if (!bEnabled)
@@ -70,7 +70,7 @@ void ABRBossDummy::SetCombatAIEnabled(bool bEnabled)
 	}
 }
 
-void ABRBossDummy::OnBossReset()
+void ABRPatternBossBase::OnBossReset()
 {
 	LastAttackTime = -1000.0f;
 	ActivePatternIndex = INDEX_NONE;
@@ -82,12 +82,12 @@ void ABRBossDummy::OnBossReset()
 	}
 }
 
-void ABRBossDummy::OnBossDeadInternal()
+void ABRPatternBossBase::OnBossDeadInternal()
 {
 	ClearBaseTimers();
 }
 
-void ABRBossDummy::OnBossGroggyInternal()
+void ABRPatternBossBase::OnBossGroggyInternal()
 {
 	GetWorldTimerManager().ClearTimer(AttackWindupTimerHandle);
 	bIsAttacking = false;
@@ -95,20 +95,20 @@ void ABRBossDummy::OnBossGroggyInternal()
 	NotifyCoordinatedAttackFinished();
 }
 
-void ABRBossDummy::OnBossRecoveredFromGroggyInternal()
+void ABRPatternBossBase::OnBossRecoveredFromGroggyInternal()
 {
 	ActivePatternIndex = INDEX_NONE;
 }
 
-void ABRBossDummy::OnBossPhaseChanged(EBRBossPhase NewPhase)
+void ABRPatternBossBase::OnBossPhaseChanged(EBRBossPhase NewPhase)
 {
 	if (GEngine)
 	{
-		GEngine->AddOnScreenDebugMessage(2012, 2.0f, FColor::Orange, TEXT("Dummy pattern table switched to Phase 2"));
+		GEngine->AddOnScreenDebugMessage(2012, 2.0f, FColor::Orange, TEXT("Pattern boss table switched to Phase 2"));
 	}
 }
 
-void ABRBossDummy::UpdateBossAI(float DeltaSeconds)
+void ABRPatternBossBase::UpdateBossAI(float DeltaSeconds)
 {
 	if (!bCombatAIEnabled || bIsDead || bIsGroggy || bIsAttacking || bIsBeingExecuted)
 	{
@@ -155,7 +155,7 @@ void ABRBossDummy::UpdateBossAI(float DeltaSeconds)
 	MoveTowardTarget(DeltaSeconds);
 }
 
-void ABRBossDummy::FaceTarget(float DeltaSeconds)
+void ABRPatternBossBase::FaceTarget(float DeltaSeconds)
 {
 	if (!CurrentTarget)
 	{
@@ -173,7 +173,7 @@ void ABRBossDummy::FaceTarget(float DeltaSeconds)
 	SetActorRotation(NewRotation);
 }
 
-void ABRBossDummy::MoveTowardTarget(float DeltaSeconds)
+void ABRPatternBossBase::MoveTowardTarget(float DeltaSeconds)
 {
 	if (!CurrentTarget)
 	{
@@ -190,7 +190,7 @@ void ABRBossDummy::MoveTowardTarget(float DeltaSeconds)
 	AddActorWorldOffset(MoveDirection * GetCurrentMoveSpeed() * DeltaSeconds, true);
 }
 
-void ABRBossDummy::MoveToTeamStandbyDistance(float DeltaSeconds, float CurrentDistanceToTarget)
+void ABRPatternBossBase::MoveToTeamStandbyDistance(float DeltaSeconds, float CurrentDistanceToTarget)
 {
 	if (!CurrentTarget)
 	{
@@ -215,7 +215,7 @@ void ABRBossDummy::MoveToTeamStandbyDistance(float DeltaSeconds, float CurrentDi
 	AddActorWorldOffset(MoveDirection * GetCurrentMoveSpeed() * DeltaSeconds, true);
 }
 
-int32 ABRBossDummy::SelectPattern(float DistanceToTarget) const
+int32 ABRPatternBossBase::SelectPattern(float DistanceToTarget) const
 {
 	for (int32 Index = 0; Index < AttackPatterns.Num(); ++Index)
 	{
@@ -228,7 +228,7 @@ int32 ABRBossDummy::SelectPattern(float DistanceToTarget) const
 	return INDEX_NONE;
 }
 
-bool ABRBossDummy::CanStartPattern(const FBRBossPatternData& Pattern, float DistanceToTarget) const
+bool ABRPatternBossBase::CanStartPattern(const FBRBossPatternData& Pattern, float DistanceToTarget) const
 {
 	const UWorld* World = GetWorld();
 	if (!World)
@@ -250,19 +250,19 @@ bool ABRBossDummy::CanStartPattern(const FBRBossPatternData& Pattern, float Dist
 	return CanStartCoordinatedAttack() && World->GetTimeSeconds() - LastAttackTime >= GetPatternCooldown(Pattern);
 }
 
-float ABRBossDummy::GetPatternCooldown(const FBRBossPatternData& Pattern) const
+float ABRPatternBossBase::GetPatternCooldown(const FBRBossPatternData& Pattern) const
 {
 	const float PhaseMultiplier = BossPhase == EBRBossPhase::Phase2 ? Phase2CooldownMultiplier : 1.0f;
 	return Pattern.Cooldown * PhaseMultiplier;
 }
 
-float ABRBossDummy::GetCurrentMoveSpeed() const
+float ABRPatternBossBase::GetCurrentMoveSpeed() const
 {
 	const float PhaseMultiplier = BossPhase == EBRBossPhase::Phase2 ? Phase2MoveSpeedMultiplier : 1.0f;
 	return MoveSpeed * PhaseMultiplier;
 }
 
-void ABRBossDummy::StartBossAttack(int32 PatternIndex)
+void ABRPatternBossBase::StartBossAttack(int32 PatternIndex)
 {
 	if (!AttackPatterns.IsValidIndex(PatternIndex))
 	{
@@ -286,10 +286,10 @@ void ABRBossDummy::StartBossAttack(int32 PatternIndex)
 		GEngine->AddOnScreenDebugMessage(2006, Pattern.Windup, FColor::Orange, Message);
 	}
 
-	GetWorldTimerManager().SetTimer(AttackWindupTimerHandle, this, &ABRBossDummy::PerformBossAttack, Pattern.Windup, false);
+	GetWorldTimerManager().SetTimer(AttackWindupTimerHandle, this, &ABRPatternBossBase::PerformBossAttack, Pattern.Windup, false);
 }
 
-void ABRBossDummy::PerformBossAttack()
+void ABRPatternBossBase::PerformBossAttack()
 {
 	bIsAttacking = false;
 
@@ -316,17 +316,38 @@ void ABRBossDummy::PerformBossAttack()
 		FaceTarget(0.0f);
 	}
 
-	const FVector AttackCenter = Pattern.PatternType == EBRBossPatternType::AOE
-		? GetActorLocation() + FVector(0.0f, 0.0f, 50.0f)
-		: Pattern.bDashAwayFromTarget
-			? PreDashLocation + (PreDashForward * Pattern.ForwardOffset) + FVector(0.0f, 0.0f, 50.0f)
-			: GetActorLocation() + (GetActorForwardVector() * Pattern.ForwardOffset) + FVector(0.0f, 0.0f, 50.0f);
-	const float DistanceToTarget = FVector::Dist(AttackCenter, CurrentTarget->GetActorLocation());
-	const bool bHitTarget = DistanceToTarget <= Pattern.Radius;
+	const FVector AttackStart = Pattern.bDashAwayFromTarget
+		? PreDashLocation + FVector(0.0f, 0.0f, 50.0f)
+		: GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
+	const FVector AttackForward = Pattern.bDashAwayFromTarget ? PreDashForward : GetActorForwardVector();
+	const FVector AttackEnd = AttackStart + (AttackForward * Pattern.ForwardOffset);
+	const FVector AttackCenter = Pattern.PatternType == EBRBossPatternType::AOE ? AttackStart : AttackEnd;
+
+	bool bHitTarget = false;
+	if (Pattern.PatternType == EBRBossPatternType::AOE)
+	{
+		bHitTarget = FVector::Dist(AttackCenter, CurrentTarget->GetActorLocation()) <= Pattern.Radius;
+	}
+	else
+	{
+		const FVector TargetLocation = CurrentTarget->GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
+		const FVector ClosestPoint = FMath::ClosestPointOnSegment(TargetLocation, AttackStart, AttackEnd);
+		const bool bHitForwardLine = FVector::Dist(ClosestPoint, TargetLocation) <= Pattern.Radius;
+		const bool bHitCloseBody = FVector::Dist2D(GetActorLocation(), CurrentTarget->GetActorLocation()) <= Pattern.Radius;
+		bHitTarget = bHitForwardLine || bHitCloseBody;
+	}
 
 	if (bDrawAttackDebug)
 	{
-		DrawDebugSphere(GetWorld(), AttackCenter, Pattern.Radius, 16, bHitTarget ? FColor::Red : FColor::Silver, false, 1.0f, 0, 2.0f);
+		if (Pattern.PatternType == EBRBossPatternType::AOE)
+		{
+			DrawDebugSphere(GetWorld(), AttackCenter, Pattern.Radius, 16, bHitTarget ? FColor::Red : FColor::Silver, false, 1.0f, 0, 2.0f);
+		}
+		else
+		{
+			DrawDebugLine(GetWorld(), AttackStart, AttackEnd, bHitTarget ? FColor::Red : FColor::Silver, false, 1.0f, 0, 2.0f);
+			DrawDebugSphere(GetWorld(), AttackEnd, Pattern.Radius, 16, bHitTarget ? FColor::Red : FColor::Silver, false, 1.0f, 0, 2.0f);
+		}
 	}
 
 	if (!bHitTarget)
@@ -348,7 +369,7 @@ void ABRBossDummy::PerformBossAttack()
 	}
 }
 
-void ABRBossDummy::ClearBaseTimers()
+void ABRPatternBossBase::ClearBaseTimers()
 {
 	Super::ClearBaseTimers();
 	GetWorldTimerManager().ClearTimer(AttackWindupTimerHandle);
@@ -357,7 +378,7 @@ void ABRBossDummy::ClearBaseTimers()
 	NotifyCoordinatedAttackFinished();
 }
 
-void ABRBossDummy::DrawBossDebug() const
+void ABRPatternBossBase::DrawBossDebug() const
 {
 	if (!bShowDebug || !GEngine)
 	{
@@ -373,7 +394,7 @@ void ABRBossDummy::DrawBossDebug() const
 		: TEXT("None");
 
 	const FString DebugText = FString::Printf(
-		TEXT("Boss Dummy\nPhase: %s\nRole: %s\nHP: %.0f / %.0f\nGroggy: %.0f / %.0f\nAI: %s\nTeamMate Attacking: %s\nAttacking: %s\nPattern: %s\nGroggy State: %s\nExecution: %s\nDead: %s"),
+		TEXT("Pattern Boss Base\nPhase: %s\nRole: %s\nHP: %.0f / %.0f\nGroggy: %.0f / %.0f\nAI: %s\nTeamMate Attacking: %s\nAttacking: %s\nPattern: %s\nGroggy State: %s\nExecution: %s\nDead: %s"),
 		BossPhase == EBRBossPhase::Phase2 ? TEXT("Phase2") : TEXT("Phase1"),
 		TeamRole == EBRBossTeamRole::Ranged ? TEXT("Ranged") : TeamRole == EBRBossTeamRole::Melee ? TEXT("Melee") : TeamRole == EBRBossTeamRole::Support ? TEXT("Support") : TEXT("Solo"),
 		CurrentHP,
@@ -391,7 +412,7 @@ void ABRBossDummy::DrawBossDebug() const
 	GEngine->AddOnScreenDebugMessage(2001, 0.0f, FColor::Orange, DebugText);
 }
 
-FString ABRBossDummy::GetBossDebugName() const
+FString ABRPatternBossBase::GetBossDebugName() const
 {
-	return TEXT("Boss Dummy");
+	return TEXT("Pattern Boss Base");
 }

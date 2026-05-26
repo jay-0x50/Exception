@@ -6,6 +6,7 @@
 #include "BRBossBase.generated.h"
 
 class UBRStatComponent;
+class USceneComponent;
 class UStaticMeshComponent;
 class ABRBossTeamCoordinator;
 
@@ -146,6 +147,9 @@ protected:
 	virtual void UpdateBossAI(float DeltaSeconds);
 	virtual void DrawBossDebug() const;
 	virtual FString GetBossDebugName() const;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
