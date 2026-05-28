@@ -303,8 +303,6 @@ void ABRPatternBossBase::PerformBossAttack()
 	const FBRBossPatternData Pattern = AttackPatterns[ActivePatternIndex];
 	ActivePatternIndex = INDEX_NONE;
 
-	const FVector PreDashLocation = GetActorLocation();
-	const FVector PreDashForward = GetActorForwardVector();
 	if (Pattern.PatternType == EBRBossPatternType::Dash)
 	{
 		const FVector RawDashDirection = CurrentTarget
@@ -316,10 +314,8 @@ void ABRPatternBossBase::PerformBossAttack()
 		FaceTarget(0.0f);
 	}
 
-	const FVector AttackStart = Pattern.bDashAwayFromTarget
-		? PreDashLocation + FVector(0.0f, 0.0f, 50.0f)
-		: GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
-	const FVector AttackForward = Pattern.bDashAwayFromTarget ? PreDashForward : GetActorForwardVector();
+	const FVector AttackStart = GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
+	const FVector AttackForward = GetActorForwardVector();
 	const FVector AttackEnd = AttackStart + (AttackForward * Pattern.ForwardOffset);
 	const FVector AttackCenter = Pattern.PatternType == EBRBossPatternType::AOE ? AttackStart : AttackEnd;
 

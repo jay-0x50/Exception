@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABRBossArenaTrigger::ABRBossArenaTrigger()
@@ -64,6 +65,48 @@ void ABRBossArenaTrigger::BeginPlay()
 		RewardActorToShowOnDefeat->SetActorHiddenInGame(true);
 		RewardActorToShowOnDefeat->SetActorEnableCollision(false);
 	}
+
+	GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		if (bArenaStarted || bArenaCleared || !TriggerBox)
+		{
+			return;
+		}
+
+		TriggerBox->UpdateOverlaps();
+
+		TArray<AActor*> OverlappingActors;
+		TriggerBox->GetOverlappingActors(OverlappingActors, AExceptionCharacter::StaticClass());
+		if (!OverlappingActors.IsEmpty())
+		{
+			StartArena();
+		}
+	}));
+
+	for (const float Delay : {0.25f, 0.75f, 1.5f})
+	{
+		FTimerHandle RetryOverlapTimerHandle;
+		GetWorldTimerManager().SetTimer(
+			RetryOverlapTimerHandle,
+			FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				if (bArenaStarted || bArenaCleared || !TriggerBox)
+				{
+					return;
+				}
+
+				TriggerBox->UpdateOverlaps();
+
+				TArray<AActor*> OverlappingActors;
+				TriggerBox->GetOverlappingActors(OverlappingActors, AExceptionCharacter::StaticClass());
+				if (!OverlappingActors.IsEmpty())
+				{
+					StartArena();
+				}
+			}),
+			Delay,
+			false);
+	}
 }
 
 void ABRBossArenaTrigger::OnTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -78,6 +121,11 @@ void ABRBossArenaTrigger::OnTriggerBeginOverlap(UPrimitiveComponent* OverlappedC
 
 void ABRBossArenaTrigger::StartArena()
 {
+	if (bArenaStarted || bArenaCleared)
+	{
+		return;
+	}
+
 	bArenaStarted = true;
 
 	if (AExceptionGameMode* ExceptionGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AExceptionGameMode>() : nullptr)
@@ -266,9 +314,23 @@ UBRBossStatusWidget* ABRBossArenaTrigger::ShowBossStatusWidget()
 	if (BossStatusWidget && !BossStatusWidget->IsInViewport())
 	{
 		BossStatusWidget->AddToPlayerScreen(10);
+	}
+
+	if (BossStatusWidget)
+	{
+		constexpr float BossStatusWidth = 760.0f;
+		constexpr float BossStatusHeight = 180.0f;
+		int32 ViewportSizeX = 0;
+		int32 ViewportSizeY = 0;
+		PlayerController->GetViewportSize(ViewportSizeX, ViewportSizeY);
+		if (ViewportSizeX <= 0)
+		{
+			ViewportSizeX = static_cast<int32>(BossStatusWidth);
+		}
+
 		BossStatusWidget->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
-		BossStatusWidget->SetPositionInViewport(FVector2D(40.0f, 32.0f), false);
-		BossStatusWidget->SetDesiredSizeInViewport(FVector2D(760.0f, 180.0f));
+		BossStatusWidget->SetPositionInViewport(FVector2D((ViewportSizeX - BossStatusWidth) * 0.5f, 32.0f), false);
+		BossStatusWidget->SetDesiredSizeInViewport(FVector2D(BossStatusWidth, BossStatusHeight));
 	}
 
 	return BossStatusWidget;

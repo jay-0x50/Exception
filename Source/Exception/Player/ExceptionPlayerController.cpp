@@ -45,9 +45,23 @@ UBRBossStatusWidget *AExceptionPlayerController::ShowBossStatusWidget()
 	if (BossStatusWidget && !BossStatusWidget->IsInViewport())
 	{
 		BossStatusWidget->AddToPlayerScreen(10);
+	}
+
+	if (BossStatusWidget)
+	{
+		constexpr float BossStatusWidth = 760.0f;
+		constexpr float BossStatusHeight = 180.0f;
+		int32 ViewportSizeX = 0;
+		int32 ViewportSizeY = 0;
+		GetViewportSize(ViewportSizeX, ViewportSizeY);
+		if (ViewportSizeX <= 0)
+		{
+			ViewportSizeX = static_cast<int32>(BossStatusWidth);
+		}
+
 		BossStatusWidget->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
-		BossStatusWidget->SetPositionInViewport(FVector2D(40.0f, 32.0f), false);
-		BossStatusWidget->SetDesiredSizeInViewport(FVector2D(760.0f, 180.0f));
+		BossStatusWidget->SetPositionInViewport(FVector2D((ViewportSizeX - BossStatusWidth) * 0.5f, 32.0f), false);
+		BossStatusWidget->SetDesiredSizeInViewport(FVector2D(BossStatusWidth, BossStatusHeight));
 	}
 
 	return BossStatusWidget;
@@ -367,18 +381,26 @@ void AExceptionPlayerController::UpdateStaminaGauge(float CurrentValue, float Ma
 {
 	const float ClampedValue = FMath::Clamp(NormalizedValue, 0.0f, 1.0f);
 	const int32 Percent = FMath::RoundToInt(ClampedValue * 100.0f);
+	FLinearColor StaminaColor(0.0f, 0.95f, 0.55f, 1.0f);
 	FString Status = TEXT("READY");
 
 	if (ClampedValue <= 0.05f)
 	{
+		StaminaColor = FLinearColor(0.55f, 0.55f, 0.6f, 1.0f);
 		Status = TEXT("EMPTY");
+	}
+	else if (ClampedValue <= 0.3f)
+	{
+		StaminaColor = FLinearColor(1.0f, 0.42f, 0.12f, 1.0f);
+		Status = TEXT("LOW");
 	}
 	else if (ClampedValue < 1.0f)
 	{
+		StaminaColor = FLinearColor(1.0f, 0.86f, 0.18f, 1.0f);
 		Status = TEXT("DEPLETED_REFRESH");
 	}
 
-	UpdateRuntimeGauge(TEXT("StaminaGauge"), FText::FromString(FString::Printf(TEXT("[ST: %d%% // STATUS: %s]"), Percent, *Status)), ClampedValue, FLinearColor(0.9f, 0.9f, 0.95f, 1.0f));
+	UpdateRuntimeGauge(TEXT("StaminaGauge"), FText::FromString(FString::Printf(TEXT("[ST: %d%% // STATUS: %s]"), Percent, *Status)), ClampedValue, StaminaColor);
 }
 
 void AExceptionPlayerController::UpdateGroggyGauge(float NormalizedValue)

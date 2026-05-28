@@ -4,10 +4,6 @@
 #include "Blueprint/UserWidget.h"
 #include "BRBossStatusWidget.generated.h"
 
-class UProgressBar;
-class UTextBlock;
-class UVerticalBox;
-
 UCLASS(Blueprintable, BlueprintType)
 class EXCEPTION_API UBRBossStatusWidget : public UUserWidget
 {
@@ -30,8 +26,6 @@ public:
 	void SetBossGroggyState(int32 BossIndex, bool bIsGroggy);
 
 protected:
-	virtual void NativeConstruct() override;
-
 	UFUNCTION(BlueprintImplementableEvent, Category="Exception|Boss UI", meta=(DisplayName="Clear Bosses"))
 	void BP_ClearBosses();
 
@@ -46,23 +40,4 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Exception|Boss UI", meta=(DisplayName="Set Boss Groggy State"))
 	void BP_SetBossGroggyState(int32 BossIndex, bool bIsGroggy);
-
-private:
-	UPROPERTY(Transient)
-	TObjectPtr<UVerticalBox> BossListBox;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> BossNameTexts;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> BossGroggyStateTexts;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UProgressBar>> BossHPBars;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UProgressBar>> BossGroggyBars;
-
-	void BuildNativeLayout();
-	void RebuildBossRows(int32 BossCount);
 };

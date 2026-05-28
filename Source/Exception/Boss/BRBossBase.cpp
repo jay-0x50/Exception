@@ -17,7 +17,10 @@ ABRBossBase::ABRBossBase()
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetupAttachment(SceneRoot);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	MeshComponent->SetCollisionObjectType(ECC_Pawn);
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	MeshComponent->SetGenerateOverlapEvents(false);
 	MeshComponent->SetWorldScale3D(FVector(1.5f, 1.5f, 2.5f));
 
@@ -33,6 +36,15 @@ ABRBossBase::ABRBossBase()
 void ABRBossBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (MeshComponent)
+	{
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		MeshComponent->SetCollisionObjectType(ECC_Pawn);
+		MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+		MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+		MeshComponent->SetGenerateOverlapEvents(false);
+	}
 
 	if (StatComponent)
 	{
